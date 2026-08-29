@@ -49,6 +49,17 @@ export function clampFloatingWindowPosition(position, viewport, windowSize) {
   };
 }
 
+export function getFloatingWindowCenter(rect) {
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
+
+export function getTrackedFlightPosition(from, to, progress) {
+  return {
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress,
+  };
+}
+
 export function completeDemoFlight(flight, messages) {
   return {
     flight: null,

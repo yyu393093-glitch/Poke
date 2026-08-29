@@ -1,15 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { clampFloatingWindowPosition, getFloatingWindowOffset } from './pokeModel.js';
+import { clampFloatingWindowPosition, getFloatingWindowCenter, getFloatingWindowOffset } from './pokeModel.js';
 
 const FLOATING_WINDOW_OFFSET = getFloatingWindowOffset();
 
 // 【仅演示组件，禁止生产环境启用】
-export default function FakeIMWindow({ messages }) {
+export default function FakeIMWindow({ messages, onPositionChange }) {
   const [readId, setReadId] = useState(null);
   const [position, setPosition] = useState(readSavedPosition);
   const windowRef = useRef(null);
   const dragRef = useRef(null);
   useEffect(() => { const latest = messages.at(-1); if (!latest) return undefined; setReadId(latest.id); const timer = setTimeout(() => setReadId(null), 1000); return () => clearTimeout(timer); }, [messages]);
+  useEffect(() => {
+    function reportPosition() {
+      if (!windowRef.current) return;
+      onPositionChange?.(getFloatingWindowCenter(windowRef.current.getBoundingClientRect()));
+    }
+    reportPosition();
+    window.addEventListener('resize', reportPosition);
+    return () => window.removeEventListener('resize', reportPosition);
+  }, [position, onPositionChange]);
   const style = position ? { left: position.x, top: position.y } : FLOATING_WINDOW_OFFSET;
 
   function startDrag(event) {

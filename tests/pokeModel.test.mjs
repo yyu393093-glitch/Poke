@@ -57,6 +57,12 @@ test('拖动演示悬浮窗时不会移出可视区域', () => {
   );
 });
 
+test('戳一戳动画使用悬浮窗的实时中心点', () => {
+  assert.deepEqual(model.getFloatingWindowCenter({ left: 600, top: 200, width: 320, height: 288 }), { x: 760, y: 344 });
+  assert.deepEqual(model.getTrackedFlightPosition({ x: 100, y: 100 }, { x: 700, y: 300 }, 0.5), { x: 400, y: 200 });
+  assert.deepEqual(model.getTrackedFlightPosition({ x: 100, y: 100 }, { x: 900, y: 500 }, 0.5), { x: 500, y: 300 });
+});
+
 test('灯仔抵达后会把催办消息放入悬浮窗并结束飞行', () => {
   assert.ok(model, 'pokeModel 尚未实现');
   const poke = { id: 'poke-1', message: '请确认进度' };

@@ -73,7 +73,6 @@ const MASCOT = { x: 80, y: 600 };
 const CURRENT_USER = '小陈';
 const STATUS_LABEL = { done: '已完成', doing: '进行中', todo: '未开始' };
 const DRAG_THRESHOLD = 6;
-const IM_WINDOW_CENTER = { right: 500, bottom: 164 };
 
 function px([left, top, width, height]) {
   return { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` };
@@ -117,6 +116,7 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   const [fit, setFit] = useState(1);
   const [imMessages, setImMessages] = useState([]);
   const [delivery, setDelivery] = useState(null);
+  const [imTarget, setImTarget] = useState(null);
 
   // 视图（缩放 + 平移）；zoom=1 且无位移时不加 transform，静止画面保持逐像素一致
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
@@ -355,7 +355,7 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
         const nextDelivery = {
           poke: entry,
           from: toViewportPoint({ x: destX, y: destY }),
-          to: { x: window.innerWidth - IM_WINDOW_CENTER.right, y: window.innerHeight - IM_WINDOW_CENTER.bottom },
+          to: imTarget || { x: window.innerWidth - 500, y: window.innerHeight - 164 },
         };
         deliveryRef.current = nextDelivery;
         setDelivery(nextDelivery);
@@ -726,11 +726,11 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
         {toast && <div className="pk-toast" role="status">{toast}</div>}
       </section>
       </div>
-      {FEATURE_POKE_DEMO_MODE && <FakeIMWindow messages={imMessages} />}
+      {FEATURE_POKE_DEMO_MODE && <FakeIMWindow messages={imMessages} onPositionChange={setImTarget} />}
       {FEATURE_POKE_DEMO_MODE && delivery && (
         <FlyingLamp
           from={delivery.from}
-          to={delivery.to}
+          to={imTarget || delivery.to}
           duration={1500}
           onArrive={finishDemoDelivery}
         />
