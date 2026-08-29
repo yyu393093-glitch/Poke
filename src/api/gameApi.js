@@ -1,28 +1,49 @@
+import { handleLocally, hasLocalHandler } from './localMock.js';
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+// 单文件离线版：完全不发网络请求，直接走本地假数据
+const STANDALONE = import.meta.env.VITE_STANDALONE === '1';
+
 export async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  const method = options.method ?? 'GET';
+  const body = options.body ? JSON.parse(options.body) : undefined;
 
-  if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+  if (STANDALONE) {
+    return handleLocally(method, path, body);
   }
 
-  if (response.status === 204) {
-    return null;
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+
+    return contentType.includes('application/json')
+      ? response.json()
+      : response.text();
+  } catch (error) {
+    // 后端没起来就退回本地假数据，前端照样能跑通（分工文档「招 2」）
+    if (hasLocalHandler(method, path)) {
+      console.warn(`[gameApi] ${method} ${path} 走本地兜底数据：${error.message}`);
+      return handleLocally(method, path, body);
+    }
+    throw error;
   }
-
-  const contentType = response.headers.get('content-type') ?? '';
-
-  return contentType.includes('application/json')
-    ? response.json()
-    : response.text();
 }
 
 export function feishuAuth() {

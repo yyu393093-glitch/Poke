@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { clockOff, completeNode, fetchRequirements, pokeTask } from '../api/gameApi.js';
+import { clockOff, completeNode, pokeTask } from '../api/gameApi.js';
 import referenceDashboard from '../assets/poke-reference-dashboard.png';
-import cleanPlate from '../assets/poke-map-clean.png';
+import noticePatch from '../assets/poke-notice-patch.png';
 import '../styles/dashboard.css';
 import NodeCard from './NodeCard.jsx';
 
@@ -54,17 +54,6 @@ const PATH_STEPS = [
 
 const STAT_BOX = { doneToday: [653, 61, 50, 27] };
 
-/** 原「影响涟漪」面板的位置，改放 Leader 项目要求 */
-const REQ_PANEL = [1112, 645, 394, 203];
-
-/** 缩略地图：面板本体、以及整张地图等比映射进去的框 */
-const MINIMAP_PANEL = [24, 705, 212, 262];
-const MINIMAP_VIEW = [40, 785, 180, 120];
-
-const ZOOM_IN = [250, 765, 37, 40];
-const ZOOM_OUT = [250, 806, 37, 40];
-const ZOOM_FIT = [250, 847, 37, 40];
-
 const MASCOT = { x: 80, y: 600 };
 const CURRENT_USER = '小陈';
 const STATUS_LABEL = { done: '已完成', doing: '进行中', todo: '未开始' };
@@ -115,11 +104,6 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const [settling, setSettling] = useState(false);
 
-  // Leader 下发的要求
-  const [reqOwner, setReqOwner] = useState(null);
-  const [reqData, setReqData] = useState(null);
-  const [reqLoading, setReqLoading] = useState(false);
-
   const toastTimer = useRef(0);
   const flyerTimer = useRef([]);
   const fitRef = useRef(1);
@@ -151,51 +135,13 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
     toastTimer.current = window.setTimeout(() => setToast(''), 2600);
   }, []);
 
-  /* ---------------- 缩放 / 平移 ---------------- */
+  /* ---------------- 平移 ---------------- */
 
   const clampView = useCallback((next) => ({
     zoom: next.zoom,
     x: clamp(next.x, STAGE_W - STAGE_W * next.zoom, 0),
     y: clamp(next.y, STAGE_H - STAGE_H * next.zoom, 0),
   }), []);
-
-  /** 以 (fx,fy) 为焦点缩放，该点在屏幕上保持不动 */
-  const zoomAt = useCallback((nextZoom, fx, fy) => {
-    setSettling(true);
-    setView((current) => {
-      const zoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
-      if (zoom === MIN_ZOOM) return { zoom: 1, x: 0, y: 0 };
-      const worldX = (fx - current.x) / current.zoom;
-      const worldY = (fy - current.y) / current.zoom;
-      return clampView({ zoom, x: fx - worldX * zoom, y: fy - worldY * zoom });
-    });
-  }, [clampView]);
-
-  const zoomByStep = useCallback((factor) => {
-    zoomAt(view.zoom * factor, STAGE_W / 2, STAGE_H / 2);
-  }, [view.zoom, zoomAt]);
-
-  const resetView = useCallback(() => {
-    setSettling(true);
-    setView({ zoom: 1, x: 0, y: 0 });
-  }, []);
-
-  // 滚轮缩放（需要 passive:false 才能 preventDefault）
-  useEffect(() => {
-    const el = stageRef.current;
-    if (!el) return undefined;
-
-    function onWheel(event) {
-      event.preventDefault();
-      const rect = el.getBoundingClientRect();
-      const fx = (event.clientX - rect.left) / fitRef.current;
-      const fy = (event.clientY - rect.top) / fitRef.current;
-      zoomAt(view.zoom * (event.deltaY < 0 ? 1.18 : 1 / 1.18), fx, fy);
-    }
-
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [view.zoom, zoomAt]);
 
   function onPointerDown(event) {
     if (view.zoom === 1 || event.button !== 0) return;
@@ -247,23 +193,6 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
     window.setTimeout(() => { didDragRef.current = false; }, 0);
   }
 
-  /** 点缩略地图 → 把地图移到对应位置 */
-  function onMinimapClick(event) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratioX = (event.clientX - rect.left) / rect.width;
-    const ratioY = (event.clientY - rect.top) / rect.height;
-
-    setSettling(true);
-    setView((current) => {
-      const zoom = current.zoom === 1 ? 1.8 : current.zoom;
-      return clampView({
-        zoom,
-        x: STAGE_W / 2 - ratioX * STAGE_W * zoom,
-        y: STAGE_H / 2 - ratioY * STAGE_H * zoom,
-      });
-    });
-  }
-
   /* ---------------- 业务 ---------------- */
 
   const liveNodes = nodes.map((node) => (
@@ -277,24 +206,6 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
 
   function pushLog(entry) {
     setNewLogs((items) => [{ id: `${Date.now()}-${entry.to}`, ...entry }, ...items].slice(0, 1));
-  }
-
-  async function openRequirements(owner) {
-    if (didDragRef.current) return;
-    if (reqOwner === owner) { setReqOwner(null); setReqData(null); return; }
-
-    setReqOwner(owner);
-    setReqData(null);
-    setReqLoading(true);
-    try {
-      setReqData(await fetchRequirements(owner));
-    } catch (error) {
-      console.error(error);
-      showToast('拉取项目要求失败，请确认本地 mock 后端已启动（端口 3001）');
-      setReqOwner(null);
-    } finally {
-      setReqLoading(false);
-    }
   }
 
   async function handlePoke(targetId, from = CURRENT_USER) {
@@ -387,15 +298,6 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   const shown = typeof visibleCount === 'number' ? visibleCount : liveNodes.length;
   const isRevealed = (id) => liveNodes.findIndex((node) => node.id === id) < shown;
 
-  // 缩略地图上的视口指示框
-  const [mmX, mmY, mmW, mmH] = MINIMAP_VIEW;
-  const viewRect = {
-    left: mmX + (-view.x / view.zoom / STAGE_W) * mmW,
-    top: mmY + (-view.y / view.zoom / STAGE_H) * mmH,
-    width: mmW / view.zoom,
-    height: mmH / view.zoom,
-  };
-
   return (
     <div className="pk-screen">
       <section
@@ -442,7 +344,7 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
           )}
 
           {noticeMode === 'closed' && (
-            <div className="pk-notice-patch" style={{ backgroundImage: `url(${cleanPlate})` }} />
+            <div className="pk-notice-patch" style={{ backgroundImage: `url(${noticePatch})` }} />
           )}
 
           {/* ---------- 任务节点 ---------- */}
@@ -490,10 +392,10 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
             <button
               key={`avatar-${leader.name}`}
               type="button"
-              className={`pk-hit pk-hit--round${reqOwner === leader.name ? ' is-selected' : ''}`}
+              className={`pk-hit pk-hit--round${selectedId === leader.id ? ' is-selected' : ''}`}
               style={px(leader.avatar)}
-              aria-label={`查看 ${leader.name} 的项目要求`}
-              onClick={() => openRequirements(leader.name)}
+              aria-label={`查看 ${leader.name} 负责节点和 Leader 发布任务`}
+              onClick={() => openNode(leader.id)}
             />
           ))}
 
@@ -520,101 +422,11 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
             );
           })}
 
-          {/* ---------- 缩略地图：点击定位 + 视口指示 ---------- */}
-          <button
-            type="button" className="pk-hit pk-minimap-hit" style={px(MINIMAP_PANEL)}
-            aria-label="缩略地图，点击可把地图移动到对应位置"
-            onClick={onMinimapClick}
-          />
-
-          {view.zoom > 1 && (
-            <div
-              className="pk-minimap-view"
-              style={{
-                left: `${viewRect.left}px`, top: `${viewRect.top}px`,
-                width: `${viewRect.width}px`, height: `${viewRect.height}px`,
-              }}
-              aria-hidden="true"
-            />
-          )}
-
-          {/* ---------- 缩放控制 ---------- */}
-          <button
-            type="button" className="pk-hit" style={px(ZOOM_IN)}
-            aria-label="放大地图" disabled={view.zoom >= MAX_ZOOM}
-            onClick={() => zoomByStep(1.5)}
-          />
-          <button
-            type="button" className="pk-hit" style={px(ZOOM_OUT)}
-            aria-label="缩小地图" disabled={view.zoom <= MIN_ZOOM}
-            onClick={() => zoomByStep(1 / 1.5)}
-          />
-          <button
-            type="button" className="pk-hit" style={px(ZOOM_FIT)}
-            aria-label="重置视图" onClick={resetView}
-          />
-
           {/* ---------- 吉祥物气泡 ---------- */}
           <button
             type="button" className="pk-hit" style={px([155, 562, 132, 80])}
             aria-label="查看瓶颈节点 首页设计稿" onClick={() => openNode('n_design')}
           />
-
-          {/* ---------- Leader 项目要求（原「影响涟漪」位置） ---------- */}
-          <section className="pk-req" style={px(REQ_PANEL)} aria-label="Leader 下发的项目要求">
-            {!reqOwner && (
-              <div className="pk-req__empty">
-                <strong>项目要求</strong>
-                <p>点击上方任一头像，查看 Leader 下发给他的要求。</p>
-              </div>
-            )}
-
-            {reqOwner && (
-              <>
-                <header className="pk-req__head">
-                  <h3>{reqOwner} 的项目要求</h3>
-                  <span className="pk-req__from">
-                    {reqData ? `来自 ${reqData.from} · ${reqData.role}` : '　'}
-                  </span>
-                  <button
-                    type="button" className="pk-req__close" aria-label="关闭项目要求"
-                    onClick={() => { setReqOwner(null); setReqData(null); }}
-                  >×</button>
-                </header>
-
-                {reqLoading && (
-                  <div className="pk-req__loading">
-                    <span className="pk-loading__orbit" aria-hidden="true" />
-                    <span>AI 正在把要求拆成分点分条…</span>
-                  </div>
-                )}
-
-                {reqData && (
-                  <ol className="pk-req__list">
-                    {reqData.items.map((item, index) => (
-                      <li key={item.id} style={{ animationDelay: `${index * 55}ms` }}>
-                        <span className={`pk-req__pri pk-req__pri--${item.priority}`}>{item.priority}</span>
-                        <span className="pk-req__body">{item.detail}</span>
-                        {item.due && <span className="pk-req__due">{item.due}</span>}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-
-                {reqData && reqOwner === CURRENT_USER && (
-                  <footer className="pk-req__foot">
-                    <button
-                      type="button" className="pk-btn pk-btn--ghost"
-                      disabled={busy || lightsOff}
-                      onClick={handleClockOff}
-                    >
-                      {lightsOff ? '已收工关灯' : '我收工了 · 开启下班边界'}
-                    </button>
-                  </footer>
-                )}
-              </>
-            )}
-          </section>
 
           {/* ---------- 新的公开戳一戳记录 ---------- */}
           {newLogs[0] && (
@@ -667,22 +479,6 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
 
           {lightsOff && <div className="pk-lightsoff" aria-hidden="true" />}
         </div>
-
-        {/* 放大后底图上那组缩放键会跟着移出视野，
-            这里补一组固定在舞台上的控制条，保证任何缩放级别都能缩回去。
-            只在 zoom>1 时出现，所以静止画面不受影响。 */}
-        {view.zoom > 1 && (
-          <div className="pk-viewctl" role="group" aria-label="地图视图控制">
-            <button type="button" aria-label="缩小地图" onClick={() => zoomByStep(1 / 1.5)}>−</button>
-            <span aria-hidden="true">{Math.round(view.zoom * 100)}%</span>
-            <button
-              type="button" aria-label="放大地图"
-              disabled={view.zoom >= MAX_ZOOM}
-              onClick={() => zoomByStep(1.5)}
-            >+</button>
-            <button type="button" className="pk-viewctl__reset" onClick={resetView}>重置视图</button>
-          </div>
-        )}
 
         {toast && <div className="pk-toast" role="status">{toast}</div>}
       </section>

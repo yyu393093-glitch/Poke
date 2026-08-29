@@ -1,3 +1,7 @@
+import { useEffect, useState } from 'react';
+
+import { fetchRequirements } from '../api/gameApi.js';
+
 const STATUS = {
   done: { label: '已完成', tag: 'pk-tag--done' },
   doing: { label: '进行中', tag: 'pk-tag--doing' },
@@ -27,6 +31,29 @@ export function downstreamOf(nodeId, nodes, edges) {
 export default function NodeCard({ node, nodes, edges, busy, onPoke, onComplete, onClose }) {
   const status = STATUS[node.status] ?? STATUS.todo;
   const downstream = downstreamOf(node.id, nodes, edges);
+  const [requirements, setRequirements] = useState(null);
+  const [requirementsState, setRequirementsState] = useState('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setRequirements(null);
+    setRequirementsState('loading');
+    fetchRequirements(node.owner)
+      .then((data) => {
+        if (cancelled) return;
+        setRequirements(data);
+        setRequirementsState('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRequirementsState('empty');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [node.owner]);
 
   return (
     <>
@@ -74,6 +101,30 @@ export default function NodeCard({ node, nodes, edges, busy, onPoke, onComplete,
           </ul>
         ) : (
           <p>没有下游任务，延期不会连锁影响他人。</p>
+        )}
+      </div>
+
+      <div className="pk-popover__requirements">
+        <h4>Leader 发布给{node.owner}的任务</h4>
+        {requirementsState === 'loading' && (
+          <p className="pk-popover__muted">正在同步项目要求…</p>
+        )}
+        {requirementsState === 'empty' && (
+          <p className="pk-popover__muted">暂无 Leader 单独发布的任务。</p>
+        )}
+        {requirementsState === 'ready' && (
+          <>
+            <p className="pk-popover__brief">来自 {requirements.from} · {requirements.role}</p>
+            <ol>
+              {requirements.items.slice(0, 4).map((item) => (
+                <li key={item.id}>
+                  <span className={`pk-req__pri pk-req__pri--${item.priority}`}>{item.priority}</span>
+                  <span>{item.detail}</span>
+                  {item.due && <strong>{item.due}</strong>}
+                </li>
+              ))}
+            </ol>
+          </>
         )}
       </div>
 

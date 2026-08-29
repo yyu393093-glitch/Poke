@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const URL = 'http://127.0.0.1:5173/network';
+// 默认测 dev server；传参可改成别的，例如单文件版的 file:// 地址
+const URL = process.argv[2] || 'http://127.0.0.1:5173/network';
 const OUT = path.join(os.tmpdir(), 'pk-ui');
 const PORT = 9222;
 
