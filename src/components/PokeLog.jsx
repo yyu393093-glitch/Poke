@@ -1,0 +1,3 @@
+export default function PokeLog({ pokes }) {
+  return <aside className="fixed bottom-5 left-5 z-30 w-64 rounded-xl border border-slate-700 bg-slate-900/95 p-3 shadow-2xl" aria-label="戳一戳公开记录"><div className="mb-2 flex items-center justify-between"><b className="text-xs">公开戳一戳</b><span className="text-[10px] text-slate-500">{pokes.length} 条</span></div><div className="grid max-h-28 gap-2 overflow-auto">{pokes.length ? pokes.slice(-4).reverse().map((poke) => <div className="rounded-lg bg-slate-800/80 px-3 py-2 text-[11px]" key={poke.id}>👍 {poke.from} → {poke.receiver || poke.to} <time className="float-right text-slate-500">{poke.time}</time></div>) : <p className="text-[11px] text-slate-500">还没有催办记录</p>}</div></aside>;
+}

@@ -1,0 +1,13 @@
+﻿import { useEffect, useState } from 'react';
+import { desktopBridge } from '../../platform/desktopBridge.js';
+
+export default function AiFloatWindow() {
+  const [query, setQuery] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [error, setError] = useState('');
+  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
+  useEffect(() => desktopBridge.onPokeReceived((poke) => setMessages((items) => [...items, { role: 'system', content: poke.message, id: poke.pokeId }])), []);
+  async function submit(event) { event.preventDefault(); const value = query.trim(); if (!value) return; setError(''); setMessages((items) => [...items, { role: 'user', content: value, id: `q-${Date.now()}` }]); setQuery(''); try { const result = await desktopBridge.sendChat({ sessionId: 'session-demo', teamId: 'team-demo', query: value, useTeamKnowledge: false }); if (result?.message) setMessages((items) => [...items, { role: 'assistant', content: result.message, id: `a-${Date.now()}` }]); } catch { setError('助手暂时离线，输入内容未发送'); setQuery(value); } }
+  async function toggleTop() { const next = !alwaysOnTop; setAlwaysOnTop(next); await desktopBridge.setAssistantAlwaysOnTop(next); }
+  return <main className="flex h-screen min-h-[240px] flex-col bg-slate-950 p-3 text-slate-100"><header className="flex items-center justify-between border-b border-slate-800 pb-3"><div><b>✨ Poke AI 助手</b><small className="block text-[10px] text-slate-500">只处理你主动输入的内容</small></div><div className="flex gap-1"><button type="button" onClick={toggleTop} className={`rounded-md px-2 py-1 text-xs ${alwaysOnTop ? 'bg-blue-600' : 'bg-slate-800'}`}>{alwaysOnTop ? '置顶中' : '置顶'}</button><button type="button" onClick={() => desktopBridge.toggleAssistant()} className="rounded-md bg-slate-800 px-2 py-1 text-xs">收起</button></div></header><section className="flex-1 space-y-2 overflow-auto py-3" aria-label="助手会话">{messages.length ? messages.map((item) => <div key={item.id} className={`max-w-[88%] rounded-xl p-3 text-sm ${item.role === 'user' ? 'ml-auto bg-blue-600' : 'bg-slate-800 text-slate-300'}`}>{item.content}</div>) : <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-500">输入问题，开始和团队助手协作。</p>}{error && <p className="text-xs text-red-400" role="alert">{error}</p>}</section><form onSubmit={submit} className="border-t border-slate-800 pt-3"><textarea value={query} onChange={(event) => setQuery(event.target.value)} placeholder="输入问题…" rows={3} className="w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm outline-none focus:border-blue-500" /><button type="submit" className="mt-2 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold">发送</button></form></main>;
+}

@@ -1,0 +1,3 @@
+﻿const STATES = new Set(['NOT_CREATED', 'VISIBLE', 'BALL', 'HIDDEN', 'DESTROYED']);
+function nextFloatState(current, event) { if (!STATES.has(current)) throw new Error(`Invalid state: ${current}`); if (current === 'DESTROYED') throw new Error('Invalid transition from DESTROYED'); if (event === 'QUIT') return 'DESTROYED'; if ((current === 'NOT_CREATED' || current === 'HIDDEN') && event === 'OPEN') return 'VISIBLE'; if (current === 'VISIBLE' && ['TOGGLE_HOTKEY', 'MINIMIZE'].includes(event)) return 'BALL'; if (current === 'VISIBLE' && event === 'CLOSE') return 'HIDDEN'; if (current === 'BALL' && event === 'OPEN') return 'VISIBLE'; return current; }
+module.exports = { nextFloatState };
