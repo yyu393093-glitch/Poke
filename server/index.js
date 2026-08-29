@@ -12,6 +12,7 @@ import {
   addParse,
   getParses,
   getParseById,
+  getOrgChart,
   setOrgChart,
   UPLOADS_DIR,
 } from './store.js';
@@ -156,8 +157,20 @@ async function runParse(body) {
 
   const { documentId, text } = body ?? {};
   let content;
+  let resolvedDocumentId = documentId ?? '';
+
   if (typeof text === 'string' && text.trim()) {
     content = text;
+    // 粘贴的原文也落一条 documents（source_type:"paste"），可重解析、可溯源
+    const id = randomUUID();
+    addDocument({
+      id,
+      filename: '粘贴文本',
+      source_type: 'paste',
+      content,
+      created_at: new Date().toISOString(),
+    });
+    resolvedDocumentId = id;
   } else if (documentId) {
     const doc = getDocumentById(documentId);
     if (!doc) {
@@ -170,10 +183,10 @@ async function runParse(body) {
 
   try {
     const result = await parseDocument(content);
-    result.recommendedAssignments = enrichAssignments(result);
+    result.recommendedAssignments = enrichAssignments(result, getOrgChart());
     addParse({
       id: randomUUID(),
-      document_id: documentId ?? '',
+      document_id: resolvedDocumentId,
       result_json: JSON.stringify(result),
       status: 'success',
       error: '',
@@ -183,7 +196,7 @@ async function runParse(body) {
   } catch (error) {
     addParse({
       id: randomUUID(),
-      document_id: documentId ?? '',
+      document_id: resolvedDocumentId,
       result_json: '',
       status: 'failed',
       error: error?.message ?? String(error),

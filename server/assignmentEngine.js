@@ -1,10 +1,11 @@
 // 推荐分工规则引擎：模型先产出 recommendedAssignments，这里做补全 + 去重。
 //
-// 规则（对应 spec 第 8 节）：
+// 规则（对应 spec 第 8 节 + Q4「orgChart 既存又用」）：
 // 1. 每个 task.module 匹配 people[].ownsModules 里的人 → 生成 assign 推荐；
 // 2. dependencies 的 from→to → 给下游 owner 生成 notify；
 // 3. 跨部门任务 → 生成 align 推荐；
-// 4. 同一 task + 同一人 + 同一 action 只留一条。
+// 4. orgChart.reporting（from=上级, to=下级）→ 给任务 owner 的直属上级生成 notify；
+// 5. 同一 task + 同一人 + 同一 action 只留一条。
 
 const VALID_ACTIONS = new Set(['review', 'align', 'notify', 'assign']);
 
@@ -28,10 +29,19 @@ function normalizeAssignment(raw) {
   };
 }
 
-export function enrichAssignments(doc) {
+// doc = 模型解析出的 PokeDocument；globalOrgChart = store.orgChart（由 /api/org/import 导入）
+export function enrichAssignments(doc, globalOrgChart) {
   const people = Array.isArray(doc?.people) ? doc.people : [];
   const tasks = Array.isArray(doc?.tasks) ? doc.tasks : [];
   const deps = Array.isArray(doc?.dependencies) ? doc.dependencies : [];
+
+  // 合并文档自带 orgChart 与全局 orgChart 的汇报线（Q4：既存又用）
+  const docOrg = doc?.orgChart ?? {};
+  const globalOrg = globalOrgChart ?? {};
+  const reporting = [
+    ...(Array.isArray(docOrg.reporting) ? docOrg.reporting : []),
+    ...(Array.isArray(globalOrg.reporting) ? globalOrg.reporting : []),
+  ];
 
   const out = [];
   const seen = new Set();
@@ -110,6 +120,22 @@ export function enrichAssignments(doc) {
           action: 'align',
           recommendedOwner: owner.name,
           reason: `「${task.title}」跨部门：${taskDept} 与 ${owner.dept} 需对齐`,
+          alternatives: [],
+        });
+      }
+    }
+  }
+
+  // 4. orgChart.reporting → 给任务 owner 的直属上级生成 notify
+  for (const task of tasks) {
+    if (!task.owner) continue;
+    for (const rel of reporting) {
+      if (rel && rel.to === task.owner && rel.from && rel.from !== task.owner) {
+        push({
+          taskTitle: task.title,
+          action: 'notify',
+          recommendedOwner: rel.from,
+          reason: `「${task.title}」负责人 ${task.owner} 的直属上级是 ${rel.from}，需知会`,
           alternatives: [],
         });
       }

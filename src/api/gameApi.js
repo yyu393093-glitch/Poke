@@ -25,6 +25,20 @@ export async function request(path, options = {}) {
     : response.text();
 }
 
+// 文档解析板块接口统一约定：错误也返回 HTTP 200，响应体带 { error }。
+// 所有调用点用这个 helper 判断，避免「错误被当成空结果」静默渲染。
+export function getError(result) {
+  if (
+    result &&
+    typeof result === 'object' &&
+    'error' in result &&
+    result.error
+  ) {
+    return result.error;
+  }
+  return null;
+}
+
 // ---- 文档解析板块接口 ----
 
 // 文件上传不能用 request()：它会强制 Content-Type: application/json，

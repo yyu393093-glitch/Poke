@@ -1,8 +1,12 @@
+// 文档解析板块：独立只读查看器。
+// 解析结果不回流到主 App（网络图/戳一戳/metrics 不变），也不改 GameContext；
+// 「把解析结果导入协作网络图」列为后续任务（follow-up）。
 import { useEffect, useState } from 'react';
 
 import DocParsePanel from '../components/DocParsePanel.jsx';
 import {
   getDocument,
+  getError,
   listDocuments,
   parseDocument,
   uploadDocument,
@@ -31,8 +35,9 @@ export default function DocParsePage() {
   }, []);
 
   function applyOutcome(outcome) {
-    if (outcome && outcome.error) {
-      setError(outcome.error);
+    const err = getError(outcome);
+    if (err) {
+      setError(err);
       setResult(null);
     } else {
       setError('');
@@ -49,8 +54,9 @@ export default function DocParsePage() {
     setError('');
     try {
       const uploaded = await uploadDocument(file);
-      if (uploaded?.error) {
-        setError(uploaded.error);
+      const uploadErr = getError(uploaded);
+      if (uploadErr) {
+        setError(uploadErr);
         setResult(null);
       } else {
         const outcome = await parseDocument({ documentId: uploaded.documentId });
