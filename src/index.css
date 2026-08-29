@@ -67,3 +67,39 @@ button {
 .pet-core { overflow: visible; border-color: rgb(250 204 21 / 70%); background: rgb(255 251 235 / 94%); }
 .pet-orb { display: none; }
 .phase-blocked .capybara-mascot { filter: saturate(1.1); }
+
+/* 形态动画 */
+.pet-idle { animation: pet-breathe 2.8s ease-in-out infinite; }
+.pet-unread { animation: pet-hop 0.5s ease-in-out 1; }
+.pet-blocked { box-shadow: 0 0 0 6px rgb(251 113 133 / 16%), 0 12px 36px rgb(0 0 0 / 38%); }
+.pet-working { animation: pet-pulse 1.6s ease-in-out infinite; }
+.pet-done { animation: pet-flash 0.6s ease-out 1; }
+.pet-off { filter: brightness(0.4); }
+.pet-paused { animation: none; }
+@keyframes pet-hop { 50% { transform: translateY(-6px); } }
+@keyframes pet-pulse { 50% { box-shadow: 0 0 0 9px rgb(250 204 21 / 18%), 0 12px 36px rgb(0 0 0 / 38%); } }
+@keyframes pet-flash { 50% { filter: brightness(1.5); } }
+
+/* 徽标 */
+.pet-bang { position: absolute; top: -6px; left: -6px; display: grid; width: 20px; height: 20px; place-items: center; border-radius: 999px; background: #ef4444; color: #fff; font-size: 12px; font-weight: 900; }
+.pet-unread-dot { position: absolute; top: -4px; right: -4px; display: grid; min-width: 18px; height: 18px; padding: 0 4px; place-items: center; border-radius: 999px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; }
+
+/* FlowPeek */
+.flow-peek { position: absolute; width: 360px; border: 1px solid rgb(226 232 240 / 40%); border-radius: 14px; background: rgb(255 255 255 / 92%); color: #0f172a; box-shadow: 0 16px 44px rgb(0 0 0 / 32%); overflow: hidden; }
+.flow-peek-head { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid rgb(226 232 240 / 60%); }
+.flow-peek-selected { float: right; color: #64748b; font-size: 11px; font-weight: 400; }
+.flow-peek-canvas { position: relative; height: 200px; }
+.flow-peek-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mini-node-anchor { position: absolute; transform: translate(-50%, -50%); padding: 0; border: 0; background: transparent; }
+.mini-node-anchor.is-selected .mini-node { outline: 2px solid #3b82f6; outline-offset: 1px; }
+.mini-node { display: flex; align-items: center; gap: 6px; min-width: 120px; padding: 6px 8px; border: 1px solid rgb(226 232 240 / 70%); border-radius: 10px; background: #e0f2fe; text-align: left; }
+.mini-node-current { transform: scale(1.08); border-color: #3b82f6; }
+.mini-node-done { background: #dcfce7; } .mini-node-doing { background: #fef9c3; } .mini-node-todo { background: #e2e8f0; }
+.mini-node-avatar { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 999px; background: #0f172a; color: #fff; font-size: 11px; }
+.mini-node-name { display: block; font-size: 12px; }
+.mini-node-owner { display: block; color: #64748b; font-size: 10px; }
+.mini-node-flag { display: block; font-style: normal; color: #f59e0b; font-size: 10px; }
+.flow-peek-foot { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid rgb(226 232 240 / 60%); }
+.flow-peek-foot button { flex: 1; padding: 6px 0; border-radius: 8px; border: 1px solid #3b82f6; background: #eff6ff; color: #1d4ed8; font-size: 12px; cursor: pointer; }
+.flow-peek-foot button:last-child { background: #3b82f6; color: #fff; }
+@media (prefers-reduced-motion: reduce) { .pet-idle, .pet-unread, .pet-working, .pet-done { animation: none; } }
