@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+:root {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  color: #f8fafc;
+  background: #080b16;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+button {
+  font: inherit;
+}
+
+.desktop-background {
+  background:
+    radial-gradient(circle at 76% 18%, rgb(62 72 112 / 30%), transparent 30%),
+    radial-gradient(circle at 14% 82%, rgb(41 82 98 / 22%), transparent 34%),
+    linear-gradient(145deg, #111827 0%, #080b16 55%, #111329 100%);
+}
