@@ -1,8 +1,8 @@
-﻿const { BrowserWindow, screen } = require('electron');
+const { BrowserWindow, screen } = require('electron');
 const path = require('node:path');
 
 const COLLAPSED = { width: 96, height: 96 };
-const EXPANDED = { width: 280, height: 150 };
+const EXPANDED = { width: 360, height: 150 };
 
 function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedChange }) {
   const win = new BrowserWindow({

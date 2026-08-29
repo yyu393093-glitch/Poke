@@ -27,6 +27,12 @@ export default function PetWindow() {
   const mascotAsset = dropState === 'eating' ? '/assets/pet/capybara-eating.png' : dropState === 'consumed' ? '/assets/pet/capybara-success.png' : dragActive ? '/assets/pet/capybara-shake.png' : '/assets/pet/capybara-idle.png';
 
   useEffect(() => {
+    document.documentElement.classList.add('pet-window-host');
+    return () => document.documentElement.classList.remove('pet-window-host');
+  }, []);
+
+
+  useEffect(() => {
     const offProgress = desktopBridge.onPetProgress((value) => setProgress(normalizePetProgress(value)));
     const offPaused = desktopBridge.onPetPaused?.(setPaused);
     const offError = desktopBridge.onPetLoadError?.(() => setProgress((value) => ({ ...value, phase: 'error', headline: '主页面加载失败，点击重试' })));
