@@ -11,6 +11,7 @@ export const desktopBridge = {
   onPetProgress: (listener) => desktop?.onPetProgress?.(listener) ?? noopUnsubscribe,
   onPetPaused: (listener) => desktop?.onPetPaused?.(listener) ?? noopUnsubscribe,
   onPetLoadError: (listener) => desktop?.onPetLoadError?.(listener) ?? noopUnsubscribe,
+  onPetPopupSide: (listener) => desktop?.onPetPopupSide?.(listener) ?? noopUnsubscribe,
   openAssistant: () => desktop?.openAssistant?.() ?? Promise.resolve(false),
   toggleAssistant: () => desktop?.toggleAssistant?.() ?? Promise.resolve(false),
   setAssistantAlwaysOnTop: (enabled) => desktop?.setAssistantAlwaysOnTop?.(enabled) ?? Promise.resolve(Boolean(enabled)),

@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const channels = {
   openMain: 'main:open', petExpanded: 'pet:set-expanded', petMenu: 'pet:menu', petClick: 'pet:click', petReset: 'pet:reset', petPause: 'pet:set-paused', petProgress: 'pet:progress', petLoadError: 'pet:load-error',
-  openAssistant: 'assistant:open', toggleAssistant: 'assistant:toggle', setAlwaysOnTop: 'assistant:set-always-on-top', sendPoke: 'poke:send', sendChat: 'chat:send', onPoke: 'poke:received', onSession: 'session:updated', onProgress: 'pet:progress-updated',
+  openAssistant: 'assistant:open', toggleAssistant: 'assistant:toggle', setAlwaysOnTop: 'assistant:set-always-on-top', sendPoke: 'poke:send', sendChat: 'chat:send', onPoke: 'poke:received', onSession: 'session:updated', onProgress: 'pet:progress-updated', onPopupSide: 'pet:popup-side',
 };
 function subscribe(channel, listener) { const handler = (_event, value) => listener(value); ipcRenderer.on(channel, handler); return () => ipcRenderer.removeListener(channel, handler); }
 const api = {
@@ -14,6 +14,7 @@ const api = {
   petSetPaused: (paused) => ipcRenderer.invoke(channels.petPause, Boolean(paused)),
   onPetProgress: (listener) => subscribe(channels.onProgress, listener),
   onPetLoadError: (listener) => subscribe(channels.petLoadError, listener),
+  onPetPopupSide: (listener) => subscribe(channels.onPopupSide, listener),
   openAssistant: () => ipcRenderer.invoke(channels.openAssistant),
   toggleAssistant: () => ipcRenderer.invoke(channels.toggleAssistant),
   setAssistantAlwaysOnTop: (enabled) => ipcRenderer.invoke(channels.setAlwaysOnTop, Boolean(enabled)),

@@ -84,3 +84,13 @@ button {
 .pet-card { left: 0; right: 104px; width: auto; }
 .pet-drop-card { left: 0; right: 104px; width: auto; }
 .pet-drop-eating .pet-core { z-index: 2; }
+
+.pet-window-host, .pet-window-host body, .pet-window-host #root { background: transparent !important; }
+.pet-window-host html, .pet-window-host body, .pet-window-host #root { width: 100vw; height: 100vh; min-width: 0; min-height: 0; margin: 0; overflow: hidden; }
+.pet-window-host .pet-shell { width: 100%; height: 100%; background: transparent; }
+.pet-window-host .pet-core { right: 0; bottom: 0; }
+.pet-window-host .pet-card, .pet-window-host .pet-drop-card { top: 0; bottom: auto; width: 256px; height: auto; min-height: 112px; max-height: 142px; overflow: hidden; }
+.pet-window-host .pet-popup-left .pet-card, .pet-window-host .pet-popup-left .pet-drop-card { left: 0; right: auto; }
+.pet-window-host .pet-popup-right .pet-card, .pet-window-host .pet-popup-right .pet-drop-card { left: auto; right: 104px; }
+.pet-window-host .pet-core { -webkit-app-region: drag; }
+.pet-window-host .pet-core button, .pet-window-host .pet-card, .pet-window-host .pet-drop-card { -webkit-app-region: no-drag; }

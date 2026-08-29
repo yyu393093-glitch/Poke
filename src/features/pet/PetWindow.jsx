@@ -20,6 +20,7 @@ export default function PetWindow() {
   const [dropState, setDropState] = useState('idle');
   const [droppedFile, setDroppedFile] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [popupSide, setPopupSide] = useState('left');
   const collapseTimer = useRef(null);
   const consumeTimer = useRef(null);
   const meta = PHASE_META[progress.phase] || PHASE_META.error;
@@ -35,8 +36,9 @@ export default function PetWindow() {
   useEffect(() => {
     const offProgress = desktopBridge.onPetProgress((value) => setProgress(normalizePetProgress(value)));
     const offPaused = desktopBridge.onPetPaused?.(setPaused);
+    const offPopupSide = desktopBridge.onPetPopupSide?.(setPopupSide);
     const offError = desktopBridge.onPetLoadError?.(() => setProgress((value) => ({ ...value, phase: 'error', headline: '主页面加载失败，点击重试' })));
-    return () => { offProgress?.(); offPaused?.(); offError?.(); window.clearTimeout(consumeTimer.current); window.clearTimeout(collapseTimer.current); };
+    return () => { offProgress?.(); offPaused?.(); offPopupSide?.(); offError?.(); window.clearTimeout(consumeTimer.current); window.clearTimeout(collapseTimer.current); };
   }, []);
 
   function enter() {
@@ -67,7 +69,7 @@ export default function PetWindow() {
   }
 
   return (
-    <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} ${dragActive ? 'pet-drag-active' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragActive(false); }} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
+    <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} pet-popup-${popupSide} ${dragActive ? 'pet-drag-active' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragActive(false); }} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
       <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
         <span className="capybara-mascot" aria-hidden="true"><img key={mascotAsset} src={mascotAsset} alt="" /></span>
         {!expanded && <span className="pet-status" aria-label={meta.label}>{dropState === 'idle' ? meta.icon : '↓'}</span>}

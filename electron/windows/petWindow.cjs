@@ -1,10 +1,12 @@
 const { BrowserWindow, screen } = require('electron');
 const path = require('node:path');
+const { choosePopupSide } = require('../services/popupPlacement.cjs');
 
 const COLLAPSED = { width: 96, height: 96 };
 const EXPANDED = { width: 360, height: 150 };
 
 function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedChange }) {
+  let popupSide = 'left';
   const win = new BrowserWindow({
     x: config.position.x,
     y: config.position.y,
@@ -28,13 +30,16 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
 
   win.loadURL(`${process.env.POKE_RENDERER_URL || 'http://127.0.0.1:5173'}/pet`);
   win.once('ready-to-show', () => win.showInactive());
+  win.webContents.once('did-finish-load', () => win.webContents.send('pet:popup-side', popupSide));
   win.webContents.on('did-fail-load', () => win.webContents.send('pet:load-error'));
 
   function setExpanded(expanded) {
     const bounds = win.getBounds();
     const workArea = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }).workArea;
-    const nextBounds = getPetWindowBounds(bounds, expanded, workArea);
+    popupSide = choosePopupSide(bounds, expanded, workArea);
+    const nextBounds = getPetWindowBounds(bounds, expanded, workArea, popupSide);
     win.setBounds(nextBounds, true);
+    win.webContents.send('pet:popup-side', popupSide);
     onExpandedChange?.(expanded);
   }
 
@@ -53,11 +58,11 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
   return { win, setExpanded, sizes: { COLLAPSED, EXPANDED } };
 }
 
-function getPetWindowBounds(bounds, expanded, workArea) {
+function getPetWindowBounds(bounds, expanded, workArea, popupSide = 'left') {
   const size = expanded ? EXPANDED : COLLAPSED;
   const widthDelta = EXPANDED.width - COLLAPSED.width;
   const heightDelta = EXPANDED.height - COLLAPSED.height;
-  const rawX = expanded ? bounds.x - widthDelta : bounds.x + widthDelta;
+  const rawX = expanded && popupSide === 'left' ? bounds.x - widthDelta : bounds.x;
   const rawY = expanded ? bounds.y - heightDelta : bounds.y + heightDelta;
   const maxX = workArea.x + workArea.width - size.width;
   const maxY = workArea.y + workArea.height - size.height;
