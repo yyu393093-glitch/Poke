@@ -36,7 +36,7 @@ export default function PetWindow() {
 
   return <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''}`} onMouseEnter={enter} onMouseLeave={leave} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
     <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
-      <span className="pet-orb">💡</span>
+      <span className="capybara-mascot" aria-hidden="true"><span className="capybara-flower">✿</span><span className="capybara-ear capybara-ear-left" /><span className="capybara-ear capybara-ear-right" /><span className="capybara-body" /><span className="capybara-glasses"><i /><i /></span><span className="capybara-ring" /></span>
       {!expanded && <span className="pet-status" aria-label={meta.label}>{meta.icon}</span>}
     </button>
     {expanded && <section className={`pet-card ${meta.tone}`}>
