@@ -1,0 +1,835 @@
+/* 戳戳 Poke · 协作地图（可交互版）
+   底图 = 设计定稿图；所有交互都叠在上面。
+   原则：未发生交互时不覆盖任何像素 —— 静止画面与定稿图完全一致。 */
+
+:root {
+  --pk-stage-w: 1536;
+  --pk-stage-h: 1024;
+  --pk-done: #5fae4e;
+  --pk-doing: #e8b036;
+  --pk-todo: #8a949e;
+  --pk-delay: #e9782d;
+  --pk-block: #e24c3d;
+  --pk-ink: #1f2a37;
+  --pk-ink-soft: #55636f;
+  --pk-blue: #2f6fd0;
+}
+
+.pk-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0d1420;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* ---------- 舞台：固定 1536×1024，等比缩放填满视口 ---------- */
+.pk-stage {
+  /* 舞台先以原始 1536×1024 尺寸居中，再由 React 等比缩放。这样
+     cover 缩放时裁切的是视口外区域，而不是在容器内产生黑边。 */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin-left: -768px;
+  margin-top: -512px;
+  width: 1536px;
+  height: 1024px;
+  flex: none;
+  transform-origin: center center;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* 可缩放/平移的世界层。zoom=1 且无位移时组件不给 transform，
+   保证静止画面与定稿图逐像素一致。 */
+.pk-world {
+  position: absolute;
+  inset: 0;
+  width: 1536px;
+  height: 1024px;
+  transform-origin: 0 0;
+}
+
+.pk-world.is-pannable { cursor: grab; }
+.pk-world.is-pannable:active { cursor: grabbing; }
+
+/* 拖动中不加过渡（1:1 跟手）；松手后才回弹 */
+.pk-world.is-settling {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pk-stage__base {
+  position: absolute;
+  inset: 0;
+  width: 1536px;
+  height: 1024px;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* ---------- 通用热区：默认完全透明，不改变画面 ---------- */
+.pk-hit {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  color: transparent;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 140ms ease-out, box-shadow 140ms ease-out, transform 120ms ease-out;
+}
+
+.pk-hit:hover {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5), 0 8px 22px rgba(12, 26, 45, 0.22);
+}
+
+/* 反馈发生在按下的瞬间，不等松手（Apple: respond on pointer-down） */
+.pk-hit:active {
+  transform: scale(0.97);
+  background: rgba(255, 255, 255, 0.26);
+  transition-duration: 90ms;
+}
+
+.pk-hit:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(64, 132, 232, 0.9);
+}
+
+.pk-hit[disabled] {
+  cursor: default;
+  opacity: 1;
+}
+
+.pk-hit[disabled]:hover,
+.pk-hit[disabled]:active {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.pk-hit--node { border-radius: 14px; }
+.pk-hit--round { border-radius: 999px; }
+
+/* 选中态不画方框，改为贴着药丸的一圈描边（见 .pk-ring） */
+.pk-hit--node.is-selected {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- 节点状态环：选中时才出现，紧贴药丸 ---------- */
+.pk-ring {
+  position: absolute;
+  border-radius: 14px;
+  pointer-events: none;
+  animation: pk-ring-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-ring-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.pk-ring--plain { box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.95); }
+
+/* ---------- 玻璃覆盖片：仅在状态变化后出现 ----------
+   纯 backdrop-filter 模糊即可抹掉底图上烘焙的旧内容，
+   同时保留原面板的色调，所以覆盖片和周围面板天然一致。 */
+.pk-cover {
+  position: absolute;
+  border-radius: 8px;
+  /* 只用模糊、不加白 —— 这样覆盖片与所在面板的色调完全一致，看不出边界 */
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  animation: pk-cover-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-cover-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 数字类覆盖片（顶部指标）—— 字号/间距对齐底图上的「3 项」 */
+.pk-cover--stat {
+  justify-content: center;
+  align-items: baseline;
+  font-size: 27px;
+  font-weight: 600;
+  color: #26303c;
+  letter-spacing: 0;
+}
+
+.pk-cover--stat small {
+  font-size: 15px;
+  font-weight: 500;
+  margin-left: 6px;
+  color: #3d4855;
+}
+
+/* 完成打勾：对齐底图上 01/04 已有的那个勾 */
+.pk-check {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #5aae4a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 700;
+  pointer-events: none;
+  box-shadow: 0 3px 10px rgba(20, 60, 24, 0.4);
+  /* 完成是一次“落定”，给一点点过冲 */
+  animation: pk-check-pop 460ms cubic-bezier(0.34, 1.4, 0.5, 1) both;
+}
+
+@keyframes pk-check-pop {
+  from { opacity: 0; transform: scale(0.3); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* 状态徽章覆盖片（进行中 / 未开始 / 已延期） */
+.pk-badge {
+  position: absolute;
+  border-radius: 8px;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  box-sizing: border-box;
+  animation: pk-cover-in 300ms ease-out both;
+}
+
+.pk-badge--done { background: rgba(74, 150, 60, 0.72); color: #f2fbef; }
+
+/* ---------- 瓶颈呼吸环（md 03 §2） ---------- */
+.pk-bottleneck {
+  box-shadow: 0 0 0 2px rgba(233, 76, 61, 0.95);
+  animation: pk-ring-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both,
+             pk-breathe 1.2s ease-in-out 300ms infinite;
+}
+
+@keyframes pk-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes pk-breathe {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+/* ---------- 延期脉冲环（md 03 §4） ---------- */
+.pk-delayed {
+  box-shadow: 0 0 0 2px rgba(233, 150, 45, 0.9);
+  animation: pk-ring-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both,
+             pk-breathe 1.6s ease-in-out 300ms infinite;
+}
+
+/* ---------- 通知条（DOM 版，可关闭） ---------- */
+.pk-notice {
+  position: absolute;
+  left: 474px;
+  top: 119px;
+  width: 397px;
+  height: 78px;
+  border-radius: 16px;
+  background: rgba(246, 249, 253, 0.9);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 10px 30px rgba(22, 42, 70, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px 0 18px;
+  box-sizing: border-box;
+  transform-origin: 50% 0;
+  animation: pk-notice-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-notice-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.pk-notice.is-leaving {
+  animation: pk-notice-out 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes pk-notice-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+
+.pk-notice__bell { font-size: 30px; line-height: 1; flex: none; }
+
+.pk-notice__text { flex: 1; min-width: 0; }
+
+.pk-notice__text strong {
+  display: block;
+  font-size: 19px;
+  font-weight: 700;
+  color: #17222f;
+  letter-spacing: 0.01em;
+}
+
+.pk-notice__text span {
+  display: block;
+  margin-top: 4px;
+  font-size: 14.5px;
+  color: #5c6774;
+}
+
+.pk-notice__close {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #55616e;
+  font-size: 19px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background-color 140ms ease-out, transform 110ms ease-out;
+}
+
+.pk-notice__close:hover { background: rgba(20, 40, 70, 0.09); }
+.pk-notice__close:active { transform: scale(0.9); }
+.pk-notice__close:focus-visible { outline: 3px solid rgba(64, 132, 232, 0.9); outline-offset: 1px; }
+
+/* 通知条关闭后，用无通知条版底图补上该区域 */
+.pk-notice-patch {
+  position: absolute;
+  left: 460px;
+  top: 106px;
+  width: 428px;
+  height: 106px;
+  background-size: 1536px 1024px;
+  background-position: -460px -106px;
+  pointer-events: none;
+  animation: pk-fade-in 240ms ease-out both;
+}
+
+/* ---------- 节点详情浮层（md 03 §5） ---------- */
+.pk-popover {
+  position: absolute;
+  width: 300px;
+  border-radius: 18px;
+  background: rgba(250, 252, 255, 0.94);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  box-shadow: 0 20px 48px rgba(15, 32, 56, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  padding: 16px 18px 18px;
+  box-sizing: border-box;
+  color: var(--pk-ink);
+  z-index: 40;
+  transform-origin: var(--pk-origin-x, 50%) var(--pk-origin-y, 0%);
+  animation: pk-pop-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 从触发它的节点长出来（Apple: anchor to source） */
+@keyframes pk-pop-in {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.pk-popover__head { display: flex; align-items: flex-start; gap: 10px; }
+
+.pk-popover__head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.pk-popover__close {
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: #6a7480;
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  transition: background-color 140ms ease-out, transform 110ms ease-out;
+}
+
+.pk-popover__close:hover { background: rgba(20, 40, 70, 0.09); }
+.pk-popover__close:active { transform: scale(0.9); }
+
+.pk-popover__meta {
+  margin: 10px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  font-size: 14px;
+}
+
+.pk-popover__meta dt { color: var(--pk-ink-soft); }
+.pk-popover__meta dd { margin: 0; font-weight: 600; }
+
+.pk-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.pk-tag--done { background: rgba(90, 174, 74, 0.16); color: #35701f; }
+.pk-tag--doing { background: rgba(232, 176, 54, 0.2); color: #8a6208; }
+.pk-tag--todo { background: rgba(120, 132, 145, 0.18); color: #4d5866; }
+.pk-tag--delay { background: rgba(233, 120, 45, 0.18); color: #a8500f; }
+.pk-tag--block { background: rgba(226, 76, 61, 0.16); color: #a72d20; }
+
+.pk-popover__impact {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(30, 55, 90, 0.12);
+}
+
+.pk-popover__impact h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pk-ink-soft);
+}
+
+.pk-popover__impact ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+
+.pk-popover__impact li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13.5px;
+}
+
+.pk-popover__impact li span { color: var(--pk-ink-soft); }
+
+.pk-popover__impact p { margin: 0; font-size: 13.5px; color: var(--pk-ink-soft); }
+
+.pk-popover__actions { margin-top: 14px; display: flex; gap: 8px; }
+
+.pk-btn {
+  flex: 1;
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 110ms ease-out, filter 140ms ease-out, background-color 140ms ease-out;
+}
+
+.pk-btn:active { transform: scale(0.97); transition-duration: 90ms; }
+.pk-btn:focus-visible { outline: 3px solid rgba(64, 132, 232, 0.9); outline-offset: 2px; }
+.pk-btn[disabled] { opacity: 0.55; cursor: default; transform: none; }
+
+.pk-btn--primary { background: #2f6fd0; color: #fff; }
+.pk-btn--primary:hover:not([disabled]) { filter: brightness(1.07); }
+
+.pk-btn--ghost { background: rgba(30, 60, 100, 0.09); color: #2b3a4a; }
+.pk-btn--ghost:hover:not([disabled]) { background: rgba(30, 60, 100, 0.15); }
+
+/* ---------- 新的公开戳一戳记录（叠在记录面板上方） ---------- */
+/* 新的公开记录：直接顶到「戳一戳记录」面板的第一行，
+   用模糊盖掉底图那一行，读起来就是新记录被推到了最上面。 */
+.pk-newlog {
+  position: absolute;
+  left: 893px;
+  top: 847px;
+  width: 606px;
+  height: 41px;
+  border-radius: 9px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0 10px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  color: var(--pk-ink);
+  z-index: 30;
+  animation: pk-newlog-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-newlog-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pk-newlog__who { font-weight: 700; flex: none; }
+.pk-newlog__msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-newlog__time { flex: none; color: var(--pk-ink-soft); font-size: 12.5px; }
+
+.pk-newlog__pin {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #2f6fd0;
+  background: rgba(47, 111, 208, 0.12);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* ---------- 吉祥物飞行（戳一戳） ---------- */
+.pk-flyer {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  background: rgba(255, 245, 220, 0.95);
+  box-shadow: 0 10px 26px rgba(30, 40, 20, 0.32);
+  pointer-events: none;
+  z-index: 50;
+  /* 轻微过冲，因为这是一次“抛出去”的动作（Apple: bounce only for momentum） */
+  transition: transform 620ms cubic-bezier(0.34, 1.28, 0.42, 1), opacity 200ms ease-out;
+}
+
+.pk-ripple {
+  position: absolute;
+  border-radius: 999px;
+  border: 2px solid rgba(233, 120, 45, 0.75);
+  pointer-events: none;
+  z-index: 45;
+  animation: pk-ripple 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-ripple {
+  from { opacity: 0.85; transform: scale(0.35); }
+  to   { opacity: 0; transform: scale(1.9); }
+}
+
+/* ---------- 缩略地图 ---------- */
+.pk-minimap-hit { border-radius: 18px; }
+
+.pk-minimap-view {
+  position: absolute;
+  border-radius: 4px;
+  border: 2px solid rgba(47, 111, 208, 0.95);
+  background: rgba(47, 111, 208, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  z-index: 12;
+  transition: left 420ms cubic-bezier(0.22, 1, 0.36, 1),
+              top 420ms cubic-bezier(0.22, 1, 0.36, 1),
+              width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+              height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Leader 项目要求（占原「影响涟漪」的位置） ---------- */
+.pk-req {
+  position: absolute;
+  border-radius: 18px;
+  background: rgba(247, 250, 253, 0.82);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  padding: 13px 15px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  color: var(--pk-ink);
+  z-index: 14;
+  overflow: hidden;
+}
+
+.pk-req__empty {
+  margin: auto;
+  text-align: center;
+  color: var(--pk-ink-soft);
+}
+
+.pk-req__empty strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pk-ink);
+  margin-bottom: 6px;
+}
+
+.pk-req__empty p { margin: 0; font-size: 13.5px; }
+
+.pk-req__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: none;
+}
+
+.pk-req__head h3 { margin: 0; font-size: 16px; font-weight: 700; }
+
+.pk-req__from { font-size: 12.5px; color: var(--pk-ink-soft); flex: 1; }
+
+.pk-req__close {
+  border: 0;
+  background: transparent;
+  font-size: 17px;
+  line-height: 1;
+  color: #6a7480;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  flex: none;
+  transition: background-color 140ms ease-out, transform 110ms ease-out;
+}
+
+.pk-req__close:hover { background: rgba(20, 40, 70, 0.09); }
+.pk-req__close:active { transform: scale(0.9); }
+
+.pk-req__loading {
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--pk-ink-soft);
+}
+
+.pk-req__loading .pk-loading__orbit {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+  border-color: rgba(40, 70, 110, 0.2);
+  border-top-color: rgba(47, 111, 208, 0.95);
+}
+
+.pk-req__list {
+  margin: 9px 0 0;
+  padding: 0 4px 0 0;
+  list-style: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.pk-req__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  /* 逐条落下，呼应「AI 正在拆解」 */
+  animation: pk-req-item 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-req-item {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pk-req__pri {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 5px;
+  padding: 2px 5px;
+  margin-top: 1px;
+  letter-spacing: 0.02em;
+}
+
+.pk-req__pri--P0 { background: rgba(226, 76, 61, 0.16); color: #a72d20; }
+.pk-req__pri--P1 { background: rgba(47, 111, 208, 0.14); color: #23528f; }
+.pk-req__pri--P2 { background: rgba(120, 132, 145, 0.18); color: #4d5866; }
+
+.pk-req__body {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #2b3644;
+}
+
+.pk-req__due {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a8500f;
+  background: rgba(233, 120, 45, 0.16);
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-top: 1px;
+}
+
+.pk-req__foot { flex: none; padding-top: 9px; }
+.pk-req__foot .pk-btn { width: 100%; padding: 7px 10px; font-size: 13px; }
+
+/* ---------- 放大时的固定视图控制条 ---------- */
+.pk-viewctl {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 14px;
+  background: rgba(18, 32, 50, 0.86);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 14px 32px rgba(8, 18, 34, 0.4);
+  color: #eaf1fb;
+  animation: pk-viewctl-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-viewctl-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pk-viewctl button {
+  border: 0;
+  background: rgba(255, 255, 255, 0.1);
+  color: #eaf1fb;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+  width: 32px;
+  height: 30px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, transform 110ms ease-out;
+}
+
+.pk-viewctl button:hover:not([disabled]) { background: rgba(255, 255, 255, 0.2); }
+.pk-viewctl button:active:not([disabled]) { transform: scale(0.94); transition-duration: 90ms; }
+.pk-viewctl button:focus-visible { outline: 3px solid rgba(120, 175, 255, 0.95); outline-offset: 2px; }
+.pk-viewctl button[disabled] { opacity: 0.4; cursor: default; }
+
+.pk-viewctl span {
+  min-width: 46px;
+  text-align: center;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.pk-viewctl__reset {
+  width: auto !important;
+  padding: 0 12px;
+  font-size: 13px !important;
+}
+
+/* ---------- Toast ---------- */
+.pk-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 44px;
+  transform: translateX(-50%);
+  max-width: 620px;
+  border-radius: 14px;
+  background: rgba(18, 32, 50, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #eaf1fb;
+  font-size: 14.5px;
+  padding: 11px 18px;
+  box-shadow: 0 16px 36px rgba(8, 18, 34, 0.42);
+  z-index: 60;
+  animation: pk-toast-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ---------- 收工关灯 ---------- */
+.pk-lightsoff {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 18, 34, 0.62), rgba(6, 12, 26, 0.78));
+  pointer-events: none;
+  z-index: 20;
+  animation: pk-fade-in 700ms ease-out both;
+}
+
+/* ---------- 加载态 ---------- */
+.pk-loading {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 34px 46px;
+  border-radius: 22px;
+  background: rgba(244, 249, 255, 0.1);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: #e8f0fb;
+  text-align: center;
+}
+
+.pk-loading p { margin: 0; font-size: 15px; opacity: 0.86; }
+.pk-loading strong { font-size: 17px; font-weight: 600; }
+
+.pk-loading__orbit {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(140, 190, 255, 0.95);
+  animation: pk-spin 900ms linear infinite;
+}
+
+@keyframes pk-spin { to { transform: rotate(360deg); } }
+
+/* ---------- 屏幕阅读器 ---------- */
+.pk-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- 降低动态效果 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .pk-bottleneck,
+  .pk-delayed {
+    animation: pk-fade-in 200ms ease-out both;
+  }
+
+  .pk-notice,
+  .pk-popover,
+  .pk-newlog,
+  .pk-toast,
+  .pk-pill,
+  .pk-cover,
+  .pk-badge {
+    animation: pk-fade-in 180ms ease-out both;
+  }
+
+  .pk-flyer { transition: opacity 180ms ease-out; }
+  .pk-ripple { animation: pk-fade-in 180ms ease-out both; }
+  .pk-hit:active { transform: none; }
+  .pk-loading__orbit { animation-duration: 2.4s; }
+
+  .pk-world.is-settling { transition: transform 200ms ease-out; }
+  .pk-minimap-view { transition: none; }
+  .pk-req__list li { animation: pk-fade-in 180ms ease-out both; }
+}

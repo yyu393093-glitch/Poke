@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const channels = {
   openMain: 'main:open', petExpanded: 'pet:set-expanded', petMenu: 'pet:menu', petClick: 'pet:click', petReset: 'pet:reset', petPause: 'pet:set-paused', petProgress: 'pet:progress', petLoadError: 'pet:load-error',
-  openAssistant: 'assistant:open', toggleAssistant: 'assistant:toggle', setAlwaysOnTop: 'assistant:set-always-on-top', sendPoke: 'poke:send', sendChat: 'chat:send', onPoke: 'poke:received', onSession: 'session:updated', onProgress: 'pet:progress-updated', onPopupSide: 'pet:popup-side',
+  openAssistant: 'assistant:open', toggleAssistant: 'assistant:toggle', setAlwaysOnTop: 'assistant:set-always-on-top', sendPoke: 'poke:send', sendChat: 'chat:send', onPoke: 'poke:received', onSession: 'session:updated', onProgress: 'pet:progress-updated', snapshot: 'pet:snapshot', snapshotUpdated: 'pet:snapshot-updated', petMode: 'pet:set-mode',
 };
 function subscribe(channel, listener) { const handler = (_event, value) => listener(value); ipcRenderer.on(channel, handler); return () => ipcRenderer.removeListener(channel, handler); }
 const api = {
@@ -14,7 +14,6 @@ const api = {
   petSetPaused: (paused) => ipcRenderer.invoke(channels.petPause, Boolean(paused)),
   onPetProgress: (listener) => subscribe(channels.onProgress, listener),
   onPetLoadError: (listener) => subscribe(channels.petLoadError, listener),
-  onPetPopupSide: (listener) => subscribe(channels.onPopupSide, listener),
   openAssistant: () => ipcRenderer.invoke(channels.openAssistant),
   toggleAssistant: () => ipcRenderer.invoke(channels.toggleAssistant),
   setAssistantAlwaysOnTop: (enabled) => ipcRenderer.invoke(channels.setAlwaysOnTop, Boolean(enabled)),
@@ -22,5 +21,8 @@ const api = {
   sendChat: (payload) => ipcRenderer.invoke(channels.sendChat, payload),
   onPokeReceived: (listener) => subscribe(channels.onPoke, listener),
   onSessionUpdated: (listener) => subscribe(channels.onSession, listener),
+  sendPetSnapshot: (snapshot) => ipcRenderer.invoke(channels.snapshot, snapshot),
+  petSetMode: (mode) => ipcRenderer.invoke(channels.petMode, mode),
+  onPetSnapshot: (listener) => subscribe(channels.snapshotUpdated, listener),
 };
 contextBridge.exposeInMainWorld('pokeDesktop', api);

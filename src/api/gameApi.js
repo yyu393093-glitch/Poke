@@ -24,3 +24,58 @@ export async function request(path, options = {}) {
     ? response.json()
     : response.text();
 }
+
+export function feishuAuth() {
+  return request('/api/feishu/auth', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function fetchFeishuData(token) {
+  return request(`/api/feishu/data?token=${encodeURIComponent(token)}`);
+}
+
+export function parseTasks(tasks) {
+  return request('/api/ai/parse', {
+    method: 'POST',
+    body: JSON.stringify({ tasks }),
+  });
+}
+
+export function approveNetwork(nodes, edges) {
+  return request('/api/ai/approve', {
+    method: 'POST',
+    body: JSON.stringify({ nodes, edges }),
+  });
+}
+
+export function pokeTask(from, to) {
+  return request('/api/poke', {
+    method: 'POST',
+    body: JSON.stringify({ from, to }),
+  });
+}
+
+export function completeNode(nodeId) {
+  return request('/api/node/complete', {
+    method: 'POST',
+    body: JSON.stringify({ nodeId }),
+  });
+}
+
+export function clockOff() {
+  return request('/api/clock/off', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function fetchMetrics() {
+  return request('/api/metrics');
+}
+
+/** 取 Leader 下发给某个负责人的要求，由后端按规则拆成分点分条 */
+export function fetchRequirements(owner) {
+  return request('/api/ai/requirements', {
+    method: 'POST',
+    body: JSON.stringify({ owner }),
+  });
+}

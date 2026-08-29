@@ -1,1 +1,49 @@
-{}
+{
+  "tasks": [
+    { "id": "n_req", "name": "需求文档", "owner": "王姐", "dept": "产品部", "status": "done", "isBottleneck": false, "isDelayed": false },
+    { "id": "n_brand", "name": "品牌素材", "owner": "陈总", "dept": "设计部", "status": "doing", "isBottleneck": false, "isDelayed": true },
+    { "id": "n_design", "name": "首页设计稿", "owner": "小陈", "dept": "设计部", "status": "doing", "isBottleneck": true, "isDelayed": false },
+    { "id": "n_dev", "name": "前端开发", "owner": "老李", "dept": "研发部", "status": "todo", "isBottleneck": false, "isDelayed": false },
+    { "id": "n_test", "name": "联调测试", "owner": "小赵", "dept": "研发部", "status": "todo", "isBottleneck": false, "isDelayed": false },
+    { "id": "n_copy", "name": "运营文案", "owner": "阿May", "dept": "运营部", "status": "done", "isBottleneck": false, "isDelayed": false }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n_req", "to": "n_brand", "isCritical": true },
+    { "id": "e2", "from": "n_brand", "to": "n_design", "isCritical": true },
+    { "id": "e3", "from": "n_design", "to": "n_dev", "isCritical": true },
+    { "id": "e4", "from": "n_dev", "to": "n_test", "isCritical": true },
+    { "id": "e5", "from": "n_req", "to": "n_copy", "isCritical": false },
+    { "id": "e6", "from": "n_design", "to": "n_test", "isCritical": false }
+  ],
+  "coordinates": {
+    "n_req": { "x": 400, "y": 80 },
+    "n_brand": { "x": 200, "y": 180 },
+    "n_copy": { "x": 600, "y": 180 },
+    "n_design": { "x": 400, "y": 300 },
+    "n_dev": { "x": 300, "y": 420 },
+    "n_test": { "x": 500, "y": 420 }
+  },
+  "leader": "陈总",
+  "leaderBriefs": {
+    "小陈": {
+      "nodeId": "n_design",
+      "role": "设计部",
+      "raw": "首页设计稿这块必须在今天 18:00 前给到老李，不然前端开发和联调测试都要顺延；主视觉沿用上一版的蓝紫色调，不要再改配色方向了；首页至少给出深色和浅色两套，方便后面做主题切换；切图和标注一起打包放到共享盘，命名按 页面_模块_状态 来；如果品牌素材还没到，优先用占位图先把布局定下来，不要等。"
+    },
+    "老李": {
+      "nodeId": "n_dev",
+      "role": "研发总监",
+      "raw": "前端开发等小陈的设计稿一到就立刻开工，先把首页骨架和路由搭起来；优先保证桌面端 1536 宽度下的还原度，移动端这次不做；所有接口走本地 mock，不要接任何真实的第三方服务；组件尽量复用现有的，别新引依赖；开发过程中每完成一个模块就在地图上把状态改成已完成，下游才知道能动了。"
+    },
+    "阿May": {
+      "nodeId": "n_copy",
+      "role": "运营负责人",
+      "raw": "运营文案已经完成了，但还需要再过一轮；标题控制在 15 个字以内，副标题不超过 30 个字；文案里不要出现任何真实的品牌名和 logo，统一用文字占位；给出中英两版，英文版本周内给到就行；最后同步一份到共享文档，方便联调测试的时候直接取用。"
+    },
+    "陈总": {
+      "nodeId": "n_brand",
+      "role": "项目总负责人",
+      "raw": "品牌素材我这边延期了一天，今天务必交付，后面三个任务都在等；素材包含主视觉、图标集和一套插画规范；所有内容只跑本地，不要部署到任何云上；这次演示的重点是让大家一眼看到谁卡着谁，其他花哨功能一律砍掉；每个人自己的节点状态要及时更新，状态更新本身就是通知。"
+    }
+  }
+}

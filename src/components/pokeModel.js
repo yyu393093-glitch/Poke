@@ -1,4 +1,4 @@
-const CHANNEL_LABEL = { feishu: '飞书', wecom: '企业微信', dingtalk: '钉钉' };
+export const CHANNEL_LABEL = { feishu: '飞书', wecom: '企业微信', dingtalk: '钉钉' };
 
 export function getPokePresentation(demoMode) {
   return demoMode
@@ -13,6 +13,7 @@ export function buildPokeEvent(response, context) {
     to: context.to,
     receiver: context.receiver,
     message: response.message,
+    reply: response.reply || null,
     channel: response.channel,
     time: context.time,
     pushStatus: response.pushStatus || 'success',
@@ -30,6 +31,7 @@ export function getPokeFallback(demoMode, node, currentUser, pokeId = `demo-${Da
   if (!demoMode) return null;
   return {
     message: `${node.owner}好，${currentUser}负责的工作正在等待「${node.name}」，方便确认一下进度吗？🙏`,
+    reply: '收到，10分钟内发你🙌',
     channel: 'feishu',
     pokeId,
     pushStatus: 'success',
