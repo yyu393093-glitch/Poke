@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { request } from '../api/gameApi.js';
+import { sendPoke as sendPokeRequest } from '../api/pokeApi.js';
 import { FEATURE_POKE_DEMO_MODE } from '../config/features.js';
 import { useGame } from '../context/GameContext.jsx';
 import { buildPokeEvent, getPokeFallback } from './pokeModel.js';
@@ -16,7 +16,7 @@ export default function PokeAction({ node, onDelivered }) {
     setBusy(true); setError('');
     let response;
     try {
-      response = await request('/api/poke', { method: 'POST', body: JSON.stringify({ from: state.currentUser, to: node.id }) });
+      response = await sendPokeRequest({ from: state.currentUser, to: node.id, teamId: state.teamId });
     } catch {
       response = getPokeFallback(FEATURE_POKE_DEMO_MODE, node, state.currentUser);
       if (!response) {
