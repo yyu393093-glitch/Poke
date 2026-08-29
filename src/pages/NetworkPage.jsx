@@ -1,11 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { request } from '../api/gameApi.js';
 import MetricsBar from '../components/MetricsBar.jsx';
 import NetworkGraph from '../components/NetworkGraph.jsx';
 import NodeCard from '../components/NodeCard.jsx';
+import PokeAction from '../components/PokeAction.jsx';
+import PokeLog from '../components/PokeLog.jsx';
 import RippleView from '../components/RippleView.jsx';
-import { completeDesign, deriveMetrics, FALLBACK_EDGES, FALLBACK_NODES, getPrimaryAction } from '../components/networkModel.js';
+import { completeDesign, deriveMetrics, FALLBACK_EDGES, FALLBACK_NODES, getNodeAnchorSelector, getPrimaryAction } from '../components/networkModel.js';
+import { completeDemoFlight, getPokePresentation, getPushToast } from '../components/pokeModel.js';
+import { FEATURE_POKE_DEMO_MODE } from '../config/features.js';
 import { PHASES, useGame } from '../context/GameContext.jsx';
+
+const POKE_PRESENTATION = getPokePresentation(FEATURE_POKE_DEMO_MODE);
+const DemoFakeIMWindow = POKE_PRESENTATION.fakeIM ? lazy(() => import('../components/FakeIMWindow.jsx')) : null;
+const DemoFlyingLamp = POKE_PRESENTATION.flyingLamp ? lazy(() => import('../components/FlyingLamp.jsx')) : null;
 
 async function loadApprovedNetwork() {
   const auth = await request('/api/feishu/auth', { method: 'POST', body: '{}' });
@@ -23,6 +31,10 @@ export default function NetworkPage() {
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const [showRipple, setShowRipple] = useState(false);
+  const [imMessages, setImMessages] = useState([]);
+  const [flight, setFlight] = useState(null);
+  const [toast, setToast] = useState('');
+  const flightRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -72,7 +84,28 @@ export default function NetworkPage() {
 
   function resetDemo() {
     dispatch({ type: 'SET_NODES', payload: FALLBACK_NODES }); dispatch({ type: 'SET_EDGES', payload: FALLBACK_EDGES });
-    setSelectedId('n_brand'); setVisibleCount(FALLBACK_NODES.length); setStep(1); setShowRipple(false); setNotice('已重置：先检查延期的「品牌素材」'); setSource('fallback');
+    flightRef.current = null;
+    setSelectedId('n_brand'); setVisibleCount(FALLBACK_NODES.length); setStep(1); setShowRipple(false); setImMessages([]); setFlight(null); setToast(''); setNotice('已重置：先检查延期的「品牌素材」'); setSource('fallback');
+  }
+
+  const finishDemoFlight = useCallback(() => {
+    const currentFlight = flightRef.current;
+    flightRef.current = null;
+    setImMessages((messages) => completeDemoFlight(currentFlight, messages).messages);
+    setFlight(null);
+  }, []);
+
+  function handlePoke(poke, nodeId) {
+    if (POKE_PRESENTATION.fakeIM) {
+      const nodeElement = document.querySelector(getNodeAnchorSelector(nodeId));
+      const bounds = nodeElement?.getBoundingClientRect();
+      const nextFlight = { poke, from: { x: bounds?.left ?? window.innerWidth / 2, y: bounds?.top ?? window.innerHeight / 2 }, to: { x: window.innerWidth - 210, y: window.innerHeight - 190 } };
+      flightRef.current = nextFlight;
+      setFlight(nextFlight);
+    } else {
+      setToast(getPushToast(poke));
+      window.setTimeout(() => setToast(''), 2200);
+    }
   }
 
   const loading = source === 'loading';
@@ -84,8 +117,11 @@ export default function NetworkPage() {
     <div className="grid h-[calc(100vh-189px)] min-h-[610px] grid-cols-[minmax(760px,1fr)_320px] grid-rows-[82px_1fr] overflow-hidden rounded-b-2xl border border-slate-800 bg-slate-950">
       <div className="flex items-center justify-between border-b border-slate-800 px-6"><div><small className="text-slate-500">产品升级项目 · 当前目标：解除发布阻塞</small><h1 className="mt-1 text-xl font-semibold">{step < 3 ? '发现 1 个关键阻塞，先处理品牌素材' : '阻塞已解除，下游已自动同步'}</h1></div><div className="flex gap-3 text-[11px]"><span className="text-emerald-400">● 已完成</span><span className="text-yellow-400">● 进行中</span><span className="text-slate-500">● 未开始</span><span className="text-blue-400">━ 关键路径</span></div></div>
       {loading ? <div className="grid place-items-center"><div className="text-center text-slate-500"><span className="mx-auto mb-3 grid h-14 w-14 animate-pulse place-items-center rounded-full bg-blue-950 text-blue-300">AI</span>正在解析工作记录并生成依赖网络…</div></div> : <NetworkGraph nodes={state.nodes} edges={state.edges} selectedId={selectedId} visibleCount={visibleCount} onSelect={setSelectedId} />}
-      <NodeCard node={selected} nodes={state.nodes} edges={state.edges} action={action} busy={busy} onAction={handleAction} />
-    </div>
+      <NodeCard node={selected} nodes={state.nodes} edges={state.edges} action={action} busy={busy} onAction={handleAction} actionSlot={<PokeAction node={selected} onDelivered={handlePoke} />} />
+    </div><PokeLog pokes={state.pokes} />
+    {DemoFakeIMWindow && <Suspense fallback={null}><DemoFakeIMWindow messages={imMessages} /></Suspense>}
+    {DemoFlyingLamp && flight && <Suspense fallback={null}><DemoFlyingLamp from={flight.from} to={flight.to} duration={1500} onArrive={finishDemoFlight} /></Suspense>}
+    {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-slate-100 px-5 py-3 text-sm text-slate-900 shadow-2xl" role="status">{toast}</div>}
     {showRipple && <RippleView onClose={() => setShowRipple(false)} />}
   </main>;
 }
