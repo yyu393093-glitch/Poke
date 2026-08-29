@@ -85,8 +85,8 @@ button {
 .pet-drop-card { left: 0; right: 104px; width: auto; }
 .pet-drop-eating .pet-core { z-index: 2; }
 
-.pet-window-host, .pet-window-host body, .pet-window-host #root { background: transparent !important; }
-.pet-window-host html, .pet-window-host body, .pet-window-host #root { width: 100vw; height: 100vh; min-width: 0; min-height: 0; margin: 0; overflow: hidden; }
+html.pet-window-host, html.pet-window-host body, html.pet-window-host #root { background: transparent !important; }
+html.pet-window-host, html.pet-window-host body, html.pet-window-host #root { width: 100vw; height: 100vh; min-width: 0; min-height: 0; margin: 0; overflow: hidden; }
 .pet-window-host .pet-shell { width: 100%; height: 100%; background: transparent; }
 .pet-window-host .pet-core { right: 0; bottom: 0; }
 .pet-window-host .pet-card, .pet-window-host .pet-drop-card { top: 0; bottom: auto; width: 256px; height: auto; min-height: 112px; max-height: 142px; overflow: hidden; }
@@ -96,3 +96,12 @@ button {
 .pet-window-host .pet-core button, .pet-window-host .pet-card, .pet-window-host .pet-drop-card { -webkit-app-region: no-drag; }
 
 .pet-window-host .pet-popup-right .pet-core { left: 0; right: auto; }
+
+/* Real desktop pet: transparent mascot, with an external popup layer. */
+html.pet-window-host .pet-core { width: 96px; height: 96px; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; }
+html.pet-window-host .pet-core:focus-visible { outline: 2px solid rgb(250 204 21 / 80%); outline-offset: 2px; }
+html.pet-window-host .pet-core .capybara-mascot, html.pet-window-host .pet-core .capybara-mascot img { width: 96px; height: 96px; }
+html.pet-window-host .pet-core .pet-status { top: 0; right: 0; }
+html.pet-window-host .pet-shell-expanded { width: 360px; height: 150px; }
+html.pet-window-host .pet-shell-expanded .pet-card, html.pet-window-host .pet-shell-expanded .pet-drop-card { z-index: 1; }
+html.pet-window-host .pet-shell-expanded .pet-core { z-index: 3; }
