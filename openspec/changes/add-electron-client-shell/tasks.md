@@ -1,39 +1,25 @@
-## 1. Harness 与客户端地基
+## 1. Harness 涓庡鎴风鍦板熀
 
-- [ ] 1.1 先为窗口状态机、IPC schema、配置恢复和 Bridge fallback 编写失败测试，并验证 `npm test` 因缺少实现按预期失败
-- [ ] 1.2 添加 Electron 及开发启动依赖和 `electron:dev`、`electron:start` 脚本，并验证 `npm install` 与现有 `npm run build` 均成功
-- [ ] 1.3 创建 `electron/`、`electron/ipc/`、`electron/windows/`、`electron/services/` 和 `src/platform/` 边界文件，并通过模块导入测试确认 Renderer 不直接依赖 Electron
+- [x] 1.1 鍏堜负绐楀彛鐘舵€佹満銆両PC schema銆侀厤缃仮澶嶅拰 Bridge fallback 缂栧啓澶辫触娴嬭瘯锛屽苟楠岃瘉 `npm test` 鍥犵己灏戝疄鐜版寜棰勬湡澶辫触
+- [ ] 1.2 娣诲姞 Electron 鍙婂紑鍙戝惎鍔ㄤ緷璧栧拰 `electron:dev`銆乣electron:start` 鑴氭湰锛屽苟楠岃瘉 `npm install` 涓庣幇鏈?`npm run build` 鍧囨垚鍔?- [x] 1.3 鍒涘缓 `electron/`銆乣electron/ipc/`銆乣electron/windows/`銆乣electron/services/` 鍜?`src/platform/` 杈圭晫鏂囦欢锛屽苟閫氳繃妯″潡瀵煎叆娴嬭瘯纭 Renderer 涓嶇洿鎺ヤ緷璧?Electron
 
-## 2. IPC 契约与平台 Bridge
+## 2. IPC 濂戠害涓庡钩鍙?Bridge
 
-- [ ] 2.1 实现白名单通道常量和 Poke/Chat payload 校验，验证合法输入通过且未知字段、空 `teamId`、超长文本、路径和 URL 输入被拒绝
-- [ ] 2.2 实现安全 preload，只暴露 OpenSpec 设计列出的 Bridge 方法，并通过契约测试确认不存在任意 `send`、Node 或文件系统入口
-- [ ] 2.3 实现 `desktopBridge` 的 Electron 代理与 Web fallback，并验证两种模式暴露相同接口且浏览器构建不包含 Electron 导入
+- [x] 2.1 瀹炵幇鐧藉悕鍗曢€氶亾甯搁噺鍜?Poke/Chat payload 鏍￠獙锛岄獙璇佸悎娉曡緭鍏ラ€氳繃涓旀湭鐭ュ瓧娈点€佺┖ `teamId`銆佽秴闀挎枃鏈€佽矾寰勫拰 URL 杈撳叆琚嫆缁?- [x] 2.2 瀹炵幇瀹夊叏 preload锛屽彧鏆撮湶 OpenSpec 璁捐鍒楀嚭鐨?Bridge 鏂规硶锛屽苟閫氳繃濂戠害娴嬭瘯纭涓嶅瓨鍦ㄤ换鎰?`send`銆丯ode 鎴栨枃浠剁郴缁熷叆鍙?- [x] 2.3 瀹炵幇 `desktopBridge` 鐨?Electron 浠ｇ悊涓?Web fallback锛屽苟楠岃瘉涓ょ妯″紡鏆撮湶鐩稿悓鎺ュ彛涓旀祻瑙堝櫒鏋勫缓涓嶅寘鍚?Electron 瀵煎叆
 
-## 3. Electron 生命周期与窗口
+## 3. Electron 鐢熷懡鍛ㄦ湡涓庣獥鍙?
+- [ ] 3.1 瀹炵幇鍗曞疄渚嬩富杩涚▼鍜屼富绐楀彛宸ュ巶锛岄獙璇侀噸澶嶅惎鍔ㄥ彧鑱氱劍鏃㈡湁绐楀彛涓斾笉鍒涘缓绗簩涓疄渚?- [x] 3.2 瀹炵幇鎮诞绐楀彛鐨?NOT_CREATED銆乂ISIBLE銆丅ALL銆丠IDDEN銆丏ESTROYED 鐘舵€佽浆鎹紝骞堕€氳繃鐘舵€佹満娴嬭瘯瑕嗙洊鍏ㄩ儴鍚堟硶杞崲
+- [ ] 3.3 瀹炵幇鎵樼洏鐨勨€滄墦寮€鎮诞鍔╂墜 / 鎵撳紑涓荤▼搴?/ 瀹屽叏閫€鍑衡€濊涓猴紝骞堕€氳繃鎵嬪伐 Smoke 纭鍏抽棴绐楀彛鍙殣钘忋€佹墭鐩橀€€鍑烘墠缁撴潫杩涚▼
+- [ ] 3.4 娉ㄥ唽 `Alt+A` 鍏ㄥ眬蹇嵎閿苟瀹炵幇鍒涘缓銆佹樉绀哄拰鏀剁悆涓夋€佽涓猴紝楠岃瘉娉ㄥ唽鍐茬獊鏃跺鎴风浠嶈兘閫氳繃鎵樼洏鍜屼富绋嬪簭鍏ュ彛鎵撳紑鍔╂墜
 
-- [ ] 3.1 实现单实例主进程和主窗口工厂，验证重复启动只聚焦既有窗口且不创建第二个实例
-- [ ] 3.2 实现悬浮窗口的 NOT_CREATED、VISIBLE、BALL、HIDDEN、DESTROYED 状态转换，并通过状态机测试覆盖全部合法转换
-- [ ] 3.3 实现托盘的“打开悬浮助手 / 打开主程序 / 完全退出”行为，并通过手工 Smoke 确认关闭窗口只隐藏、托盘退出才结束进程
-- [ ] 3.4 注册 `Alt+A` 全局快捷键并实现创建、显示和收球三态行为，验证注册冲突时客户端仍能通过托盘和主程序入口打开助手
-
-## 4. 配置与安全门禁
-
-- [ ] 4.1 实现窗口位置、尺寸、置顶、快捷键和浮球状态的原子 JSON 存储，并通过测试验证正常恢复与损坏配置回退
-- [ ] 4.2 实现显示器工作区纠正，验证屏幕外坐标和过小或过大尺寸会恢复到安全可见范围
-- [ ] 4.3 配置 BrowserWindow 安全默认值和导航白名单，并验证 `contextIsolation=true`、`nodeIntegration=false`、未授权导航与新窗口被拒绝
-
-## 5. 悬浮助手与戳一戳衔接
-
-- [ ] 5.1 创建独立悬浮助手 Renderer 入口，提供消息列表、多行输入、置顶、浮球、隐藏和离线提示，并验证应用内交互无控制台错误
-- [ ] 5.2 将现有 Poke 请求接入 Node `pokeService` 和统一 Bridge，验证相同 `pokeId` 同步进入主窗口日志和悬浮助手且不会重复
-- [ ] 5.3 验证悬浮窗口隐藏期间保存待投递 Poke，窗口恢复后展示消息且不会创建第二个窗口
-- [ ] 5.4 保留网页 Demo fallback，验证无 Electron 时页面内悬浮窗仍可运行并明确显示“不会真实发送”
-- [ ] 5.5 验证 Production 业务失败只显示失败状态，不写成功日志、不向悬浮助手追加已发送消息
-
-## 6. 综合验收与交付
-
-- [ ] 6.1 执行 `npm test`、`npm run build` 和 Production 配置构建，确认测试全绿且无构建警告或敏感信息
-- [ ] 6.2 执行 Electron Smoke：主窗口、主程序入口、托盘、`Alt+A`、置顶、浮球、隐藏、完全退出和配置恢复全部通过
-- [ ] 6.3 执行戳一戳跨窗口闭环：节点点击、自动消息、公开日志、悬浮助手接收和失败提示全部通过且控制台零错误
-- [ ] 6.4 运行 `openspec validate add-electron-client-shell --strict --no-interactive` 并确认 change validation 通过后再提交实现
+## 4. 閰嶇疆涓庡畨鍏ㄩ棬绂?
+- [x] 4.1 瀹炵幇绐楀彛浣嶇疆銆佸昂瀵搞€佺疆椤躲€佸揩鎹烽敭鍜屾诞鐞冪姸鎬佺殑鍘熷瓙 JSON 瀛樺偍锛屽苟閫氳繃娴嬭瘯楠岃瘉姝ｅ父鎭㈠涓庢崯鍧忛厤缃洖閫€
+- [x] 4.2 瀹炵幇鏄剧ず鍣ㄥ伐浣滃尯绾犳锛岄獙璇佸睆骞曞鍧愭爣鍜岃繃灏忔垨杩囧ぇ灏哄浼氭仮澶嶅埌瀹夊叏鍙鑼冨洿
+- [ ] 4.3 閰嶇疆 BrowserWindow 瀹夊叏榛樿鍊煎拰瀵艰埅鐧藉悕鍗曪紝骞堕獙璇?`contextIsolation=true`銆乣nodeIntegration=false`銆佹湭鎺堟潈瀵艰埅涓庢柊绐楀彛琚嫆缁?
+## 5. 鎮诞鍔╂墜涓庢埑涓€鎴宠鎺?
+- [x] 5.1 鍒涘缓鐙珛鎮诞鍔╂墜 Renderer 鍏ュ彛锛屾彁渚涙秷鎭垪琛ㄣ€佸琛岃緭鍏ャ€佺疆椤躲€佹诞鐞冦€侀殣钘忓拰绂荤嚎鎻愮ず锛屽苟楠岃瘉搴旂敤鍐呬氦浜掓棤鎺у埗鍙伴敊璇?- [ ] 5.2 灏嗙幇鏈?Poke 璇锋眰鎺ュ叆 Node `pokeService` 鍜岀粺涓€ Bridge锛岄獙璇佺浉鍚?`pokeId` 鍚屾杩涘叆涓荤獥鍙ｆ棩蹇楀拰鎮诞鍔╂墜涓斾笉浼氶噸澶?- [ ] 5.3 楠岃瘉鎮诞绐楀彛闅愯棌鏈熼棿淇濆瓨寰呮姇閫?Poke锛岀獥鍙ｆ仮澶嶅悗灞曠ず娑堟伅涓斾笉浼氬垱寤虹浜屼釜绐楀彛
+- [x] 5.4 淇濈暀缃戦〉 Demo fallback锛岄獙璇佹棤 Electron 鏃堕〉闈㈠唴鎮诞绐椾粛鍙繍琛屽苟鏄庣‘鏄剧ず鈥滀笉浼氱湡瀹炲彂閫佲€?- [x] 5.5 楠岃瘉 Production 涓氬姟澶辫触鍙樉绀哄け璐ョ姸鎬侊紝涓嶅啓鎴愬姛鏃ュ織銆佷笉鍚戞偓娴姪鎵嬭拷鍔犲凡鍙戦€佹秷鎭?
+## 6. 缁煎悎楠屾敹涓庝氦浠?
+- [x] 6.1 鎵ц `npm test`銆乣npm run build` 鍜?Production 閰嶇疆鏋勫缓锛岀‘璁ゆ祴璇曞叏缁夸笖鏃犳瀯寤鸿鍛婃垨鏁忔劅淇℃伅
+- [ ] 6.2 鎵ц Electron Smoke锛氫富绐楀彛銆佷富绋嬪簭鍏ュ彛銆佹墭鐩樸€乣Alt+A`銆佺疆椤躲€佹诞鐞冦€侀殣钘忋€佸畬鍏ㄩ€€鍑哄拰閰嶇疆鎭㈠鍏ㄩ儴閫氳繃
+- [ ] 6.3 鎵ц鎴充竴鎴宠法绐楀彛闂幆锛氳妭鐐圭偣鍑汇€佽嚜鍔ㄦ秷鎭€佸叕寮€鏃ュ織銆佹偓娴姪鎵嬫帴鏀跺拰澶辫触鎻愮ず鍏ㄩ儴閫氳繃涓旀帶鍒跺彴闆堕敊璇?- [x] 6.4 杩愯 `openspec validate add-electron-client-shell --strict --no-interactive` 骞剁‘璁?change validation 閫氳繃鍚庡啀鎻愪氦瀹炵幇

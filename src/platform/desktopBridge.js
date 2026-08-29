@@ -1,0 +1,3 @@
+﻿const desktop = window.pokeDesktop;
+const noopUnsubscribe = () => {};
+export const desktopBridge = { isDesktop: () => Boolean(desktop?.isDesktop), openAssistant: () => desktop?.openAssistant?.() ?? Promise.resolve(false), toggleAssistant: () => desktop?.toggleAssistant?.() ?? Promise.resolve(false), setAssistantAlwaysOnTop: (enabled) => desktop?.setAssistantAlwaysOnTop?.(enabled) ?? Promise.resolve(Boolean(enabled)), sendPoke: (payload) => desktop?.sendPoke?.(payload) ?? Promise.resolve(null), sendChat: (payload) => desktop?.sendChat?.(payload) ?? Promise.resolve(null), onPokeReceived: (listener) => desktop?.onPokeReceived?.(listener) ?? noopUnsubscribe, onSessionUpdated: (listener) => desktop?.onSessionUpdated?.(listener) ?? noopUnsubscribe };
