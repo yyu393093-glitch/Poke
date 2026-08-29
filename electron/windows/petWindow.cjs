@@ -1,4 +1,4 @@
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, screen } = require('electron');
 const path = require('node:path');
 
 const COLLAPSED = { width: 72, height: 72 };
@@ -32,9 +32,9 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
 
   function setExpanded(expanded) {
     const bounds = win.getBounds();
-    const size = expanded ? EXPANDED : COLLAPSED;
-    const nextX = expanded ? bounds.x - (EXPANDED.width - COLLAPSED.width) : bounds.x + (EXPANDED.width - COLLAPSED.width);
-    win.setBounds({ x: nextX, y: bounds.y, width: size.width, height: size.height }, true);
+    const workArea = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }).workArea;
+    const nextBounds = getPetWindowBounds(bounds, expanded, workArea);
+    win.setBounds(nextBounds, true);
     onExpandedChange?.(expanded);
   }
 
@@ -53,4 +53,15 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
   return { win, setExpanded, sizes: { COLLAPSED, EXPANDED } };
 }
 
-module.exports = { COLLAPSED, EXPANDED, createPetWindow };
+function getPetWindowBounds(bounds, expanded, workArea) {
+  const size = expanded ? EXPANDED : COLLAPSED;
+  const widthDelta = EXPANDED.width - COLLAPSED.width;
+  const heightDelta = EXPANDED.height - COLLAPSED.height;
+  const rawX = expanded ? bounds.x - widthDelta : bounds.x + widthDelta;
+  const rawY = expanded ? bounds.y - heightDelta : bounds.y + heightDelta;
+  const maxX = workArea.x + workArea.width - size.width;
+  const maxY = workArea.y + workArea.height - size.height;
+  return { x: Math.min(Math.max(rawX, workArea.x), maxX), y: Math.min(Math.max(rawY, workArea.y), maxY), width: size.width, height: size.height };
+}
+
+module.exports = { COLLAPSED, EXPANDED, createPetWindow, getPetWindowBounds };

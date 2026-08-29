@@ -42,7 +42,7 @@ button {
 .phase-normal { animation: pet-breathe 2.8s ease-in-out infinite; }
 .phase-blocked { box-shadow: 0 0 0 6px rgb(251 113 133 / 16%), 0 12px 36px rgb(0 0 0 / 38%); }
 .pet-paused, .phase-off { animation: none; }
-.pet-card { position: absolute; right: 0; bottom: 0; width: 280px; min-height: 140px; padding: 14px 16px; border: 1px solid; border-radius: 18px; color: #f8fafc; box-shadow: 0 16px 44px rgb(0 0 0 / 42%); animation: pet-card-in 200ms ease-out both; }
+.pet-card { box-sizing: border-box; position: absolute; right: 0; bottom: 0; width: 280px; height: 140px; overflow: hidden; padding: 14px 16px; border: 1px solid; border-radius: 18px; color: #f8fafc; box-shadow: 0 16px 44px rgb(0 0 0 / 42%); animation: pet-card-in 200ms ease-out both; }
 .pet-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
 .pet-card-head span, .pet-card-sub { color: #cbd5e1; font-size: 11px; }
 .pet-card-metric { margin-top: 8px; font-size: 13px; }
