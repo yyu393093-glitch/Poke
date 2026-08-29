@@ -8,6 +8,7 @@ const { registerHandlers } = require('./ipc/handlers.cjs');
 const { DEFAULT_CONFIG } = require('./services/configStore.cjs');
 const { createPetPositionStore } = require('./services/petPositionStore.cjs');
 const { DEFAULT_PET_PROGRESS, normalizePetProgress, createPetProgressStore } = require('./services/petProgressStore.cjs');
+const { isPokeRendererAssetResponse } = require('./services/rendererHealth.cjs');
 
 let mainWindow;
 let floatWindow;
@@ -23,19 +24,31 @@ let positionStore;
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
+async function rendererServesPoke(url) {
+  try {
+    const response = await fetch(`${url}/assets/pet/capybara-idle.png`);
+    return isPokeRendererAssetResponse({ status: response.status, contentType: response.headers.get('content-type') });
+  } catch { return false; }
+}
+
 async function ensureRendererServer() {
-  if (process.env.POKE_RENDERER_URL || app.isPackaged) return;
-  const url = 'http://127.0.0.1:5173';
-  try { if ((await fetch(url)).ok) return; } catch { /* start local Vite below */ }
+  if (app.isPackaged) return;
+  if (process.env.POKE_RENDERER_URL) return;
   const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  rendererProcess = spawn(npmCommand, ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '5173'], {
-    cwd: path.join(__dirname, '..'), windowsHide: true, stdio: 'ignore',
-  });
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    try { if ((await fetch(url)).ok) return; } catch { /* keep waiting */ }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+  for (let port = 4321; port <= 4330; port += 1) {
+    const url = `http://127.0.0.1:${port}`;
+    if (await rendererServesPoke(url)) { process.env.POKE_RENDERER_URL = url; return; }
+    try { await fetch(url); continue; } catch { /* this port is available */ }
+    rendererProcess = spawn(npmCommand, ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(port)], {
+      cwd: path.join(__dirname, '..'), windowsHide: true, stdio: 'ignore',
+    });
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (await rendererServesPoke(url)) { process.env.POKE_RENDERER_URL = url; return; }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(`Local Poke renderer did not start on port ${port}`);
   }
-  throw new Error('Local renderer did not start on port 5173');
+  throw new Error('No local port available for the Poke renderer');
 }
 
 function focusMain() {

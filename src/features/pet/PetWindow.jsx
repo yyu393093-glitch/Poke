@@ -23,6 +23,7 @@ export default function PetWindow() {
   const consumeTimer = useRef(null);
   const meta = PHASE_META[progress.phase] || PHASE_META.error;
   const dropMeta = getDropState(dropState);
+  const mascotAsset = dropState === 'eating' ? '/assets/pet/capybara-eating.png' : dropState === 'consumed' ? '/assets/pet/capybara-success.png' : '/assets/pet/capybara-idle.png';
 
   useEffect(() => {
     const offProgress = desktopBridge.onPetProgress((value) => setProgress(normalizePetProgress(value)));
@@ -58,7 +59,7 @@ export default function PetWindow() {
   return (
     <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
       <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
-        <span className="capybara-mascot" aria-hidden="true"><img src="/assets/pet/capybara-idle.png" alt="" /></span>
+        <span className="capybara-mascot" aria-hidden="true"><img key={mascotAsset} src={mascotAsset} alt="" /></span>
         {!expanded && <span className="pet-status" aria-label={meta.label}>{dropState === 'idle' ? meta.icon : '↓'}</span>}
       </button>
       {dropState !== 'idle' ? (
