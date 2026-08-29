@@ -29,8 +29,8 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
   });
 
   win.loadURL(`${process.env.POKE_RENDERER_URL || 'http://127.0.0.1:5173'}/pet`);
-  win.once('ready-to-show', () => win.showInactive());
-  win.webContents.once('did-finish-load', () => win.webContents.send('pet:popup-side', popupSide));
+  win.once('ready-to-show', () => { win.showInactive(); win.setOpacity(1); });
+  win.webContents.once('did-finish-load', () => { win.webContents.send('pet:popup-side', popupSide); if (!win.isVisible()) win.showInactive(); });
   win.webContents.on('did-fail-load', () => win.webContents.send('pet:load-error'));
 
   function setExpanded(expanded) {
