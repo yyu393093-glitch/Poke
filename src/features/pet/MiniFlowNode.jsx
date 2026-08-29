@@ -3,8 +3,7 @@ const STATUS_TONE = { done: 'mini-node-done', doing: 'mini-node-doing', todo: 'm
 
 export default function MiniFlowNode({ node }) {
   return (
-    <button
-      type="button"
+    <div
       className={`mini-node ${STATUS_TONE[node.status] || ''} ${node.role === 'current' ? 'mini-node-current' : ''}`}
       data-role={node.role}
     >
@@ -14,6 +13,6 @@ export default function MiniFlowNode({ node }) {
         <small className="mini-node-owner">{node.owner} · {STATUS_LABEL[node.status]}</small>
       </span>
       {node.isDelayed && <em className="mini-node-flag">延期1天</em>}
-    </button>
+    </div>
   );
 }
