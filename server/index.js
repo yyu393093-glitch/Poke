@@ -53,6 +53,11 @@ function delay() {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// 统一 JSON 错误响应：{ error, code }，绝不返回 HTML、不崩溃进程
+function sendError(response, status, code, error) {
+  response.status(status).json({ error, code });
+}
+
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true });
 });
@@ -64,8 +69,14 @@ app.post('/api/feishu/auth', async (_request, response) => {
 });
 
 // 6.2 拉取假飞书数据（不含坐标）
-app.get('/api/feishu/data', async (_request, response) => {
+app.get('/api/feishu/data', async (request, response) => {
   await delay();
+  // 假授权校验：携带 token 但值错误时拒绝；缺省 token 保持向后兼容
+  const { token } = request.query;
+  if (token !== undefined && token !== 'mock-token') {
+    sendError(response, 401, 'INVALID_TOKEN', '无效的飞书 token');
+    return;
+  }
   response.json({ tasks });
 });
 
@@ -73,9 +84,12 @@ app.get('/api/feishu/data', async (_request, response) => {
 // 真实版本会调用 LLM 理解文档/看板/聊天；本 Demo 使用预设结果。
 app.post('/api/ai/parse', async (request, response) => {
   await delay();
-  const sourceTasks = Array.isArray(request.body?.tasks)
-    ? request.body.tasks
-    : tasks;
+  const providedTasks = request.body?.tasks;
+  if (providedTasks !== undefined && !Array.isArray(providedTasks)) {
+    sendError(response, 400, 'INVALID_TASKS', 'tasks 必须是数组');
+    return;
+  }
+  const sourceTasks = Array.isArray(providedTasks) ? providedTasks : tasks;
   const nodes = sourceTasks.map((task) => ({
     ...task,
     x: coordinates[task.id]?.x,
@@ -87,17 +101,32 @@ app.post('/api/ai/parse', async (request, response) => {
 // 6.4 审批（直接回显请求，不调用外部服务）
 app.post('/api/ai/approve', async (request, response) => {
   await delay();
-  const nodes = request.body?.nodes ?? [];
-  const approvedEdges = request.body?.edges ?? [];
-  response.json({ approved: true, nodes, edges: approvedEdges });
+  const nodes = request.body?.nodes;
+  const approvedEdges = request.body?.edges;
+  if (nodes !== undefined && !Array.isArray(nodes)) {
+    sendError(response, 400, 'INVALID_NODES', 'nodes 必须是数组');
+    return;
+  }
+  if (approvedEdges !== undefined && !Array.isArray(approvedEdges)) {
+    sendError(response, 400, 'INVALID_EDGES', 'edges 必须是数组');
+    return;
+  }
+  response.json({ approved: true, nodes: nodes ?? [], edges: approvedEdges ?? [] });
 });
 
 // 6.5 戳一戳
 app.post('/api/poke', async (request, response) => {
   await delay();
-  const { to } = request.body ?? {};
+  const { from, to } = request.body ?? {};
+  if (typeof from !== 'string' || !from.trim() || typeof to !== 'string' || !to.trim()) {
+    sendError(response, 400, 'INVALID_POKE', 'from 和 to 必须是非空字符串');
+    return;
+  }
   const node = tasks.find((task) => task.id === to);
-  const nodeName = node?.name ?? to;
+  if (!node) {
+    sendError(response, 404, 'NODE_NOT_FOUND', `未找到节点 ${to}`);
+    return;
+  }
 
   if (to === 'n_brand') {
     response.json({
@@ -109,7 +138,7 @@ app.post('/api/poke', async (request, response) => {
   }
 
   response.json({
-    message: `「${nodeName}」快好了吗？下游在等你 👀`,
+    message: `「${node.name}」快好了吗？下游在等你 👀`,
     reply: '好，我尽快 👌',
     channel: 'feishu',
   });
@@ -119,6 +148,15 @@ app.post('/api/poke', async (request, response) => {
 app.post('/api/node/complete', async (request, response) => {
   await delay();
   const { nodeId } = request.body ?? {};
+  if (typeof nodeId !== 'string' || !nodeId.trim()) {
+    sendError(response, 400, 'INVALID_NODE_ID', 'nodeId 必须是非空字符串');
+    return;
+  }
+  if (!tasks.some((task) => task.id === nodeId)) {
+    sendError(response, 404, 'NODE_NOT_FOUND', `未找到节点 ${nodeId}`);
+    return;
+  }
+  // 根据 edges 动态查找所有直接下游，再读取负责人，不写死 n_dev / n_test
   const downstream = edges
     .filter((edge) => edge.from === nodeId)
     .map((edge) => tasks.find((task) => task.id === edge.to))
@@ -330,6 +368,15 @@ app.post('/api/assignment/recommend', async (request, response) => {
   response.json({ assignments: outcome.result.recommendedAssignments ?? [] });
 });
 
-app.listen(PORT, () => {
-  console.log(`Poke server listening on http://localhost:${PORT}`);
-});
+// 拆出 app 供测试导入；只有直接运行本文件时才监听端口（不改 npm start 行为）
+const isMain =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  app.listen(PORT, () => {
+    console.log(`Poke server listening on http://localhost:${PORT}`);
+  });
+}
+
+export { app };
