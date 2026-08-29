@@ -1,4 +1,4 @@
-const CHANNEL_LABEL = { feishu: '飞书', wecom: '企业微信', dingtalk: '钉钉' };
+export const CHANNEL_LABEL = { feishu: '飞书', wecom: '企业微信', dingtalk: '钉钉' };
 
 export function getPokePresentation(demoMode) {
   return demoMode
