@@ -1,6 +1,6 @@
 import { derivePetBadges } from '../../components/petModel.js';
 
-export default function PetAvatar({ mood, progress, unread, paused, onClick, onMouseEnter, onMouseLeave }) {
+export default function PetAvatar({ mood, progress, unread, paused, onClick, onMouseEnter, onMouseLeave, onPointerDown, onPointerMove, onPointerUp }) {
   const badges = derivePetBadges({ progress, unread });
   return (
     <button
@@ -10,6 +10,9 @@ export default function PetAvatar({ mood, progress, unread, paused, onClick, onM
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
     >
       <img className="pet-reference-capybara" src="/assets/pet/capybara-idle.png" alt="" draggable="false" />
       {badges.blocked && <span className="pet-bang" aria-label="存在瓶颈">!</span>}

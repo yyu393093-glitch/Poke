@@ -19,4 +19,10 @@ function validatePetMode(value) {
   if (!PET_MODES.has(value.mode)) throw new Error('Invalid mode');
   return { mode: value.mode, flipX: value.flipX === true, flipY: value.flipY === true };
 }
-module.exports = { MAX_TEXT, validatePokePayload, validateChatPayload, validatePetSnapshot, validatePetMode };
+function validatePetMove(value) {
+  assertPlainObject(value);
+  validateKeys(value, ['dx', 'dy']);
+  if (![value.dx, value.dy].every(Number.isFinite) || Math.abs(value.dx) > 200 || Math.abs(value.dy) > 200) throw new Error('Invalid pet move delta');
+  return { dx: value.dx, dy: value.dy };
+}
+module.exports = { MAX_TEXT, validatePokePayload, validateChatPayload, validatePetSnapshot, validatePetMode, validatePetMove };

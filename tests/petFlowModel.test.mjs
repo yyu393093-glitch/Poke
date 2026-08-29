@@ -73,6 +73,8 @@ test('宠物快照与模式 payload 被白名单校验', () => {
   assert.throws(() => contracts.validatePetSnapshot({ progress: {}, nodes: {}, edges: [], pokes: [], notifications: [], currentUser: '' }), /array/);
   assert.deepEqual(contracts.validatePetMode({ mode: 'panel', flipX: true, flipY: false }), { mode: 'panel', flipX: true, flipY: false });
   assert.throws(() => contracts.validatePetMode({ mode: 'bogus' }), /mode/);
+  assert.deepEqual(contracts.validatePetMove({ dx: 8, dy: -4 }), { dx: 8, dy: -4 });
+  assert.throws(() => contracts.validatePetMove({ dx: 9999, dy: 0 }), /delta/);
 });
 
 test('桌面窗口按屏幕位置翻转定位：靠右向左长、靠下向上长', () => {

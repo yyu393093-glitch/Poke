@@ -3204,7 +3204,7 @@ a:focus-visible {
 .pet-shell { position: relative; width: 72px; height: 72px; color: white; overflow: hidden; background: transparent; }
 .pet-shell-expanded { width: 464px; height: 500px; }
 .pet-shell-peek { width: 444px; height: 300px; }
-.pet-shell .pet-core { left: 0; right: auto; top: 0; bottom: auto; border: 0; background: transparent; box-shadow: none; -webkit-app-region: drag; }
+.pet-shell .pet-core { left: 0; right: auto; top: 0; bottom: auto; border: 0; background: transparent; box-shadow: none; -webkit-app-region: no-drag; touch-action: none; }
 .pet-shell.pet-flip-x .pet-core { left: auto; right: 0; }
 .pet-shell.pet-flip-y .pet-core { top: auto; bottom: 0; }
 .pet-reference-capybara { display: block; width: 72px; height: 72px; object-fit: contain; pointer-events: none; user-select: none; }

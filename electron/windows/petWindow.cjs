@@ -31,6 +31,7 @@ function getPetAnchorFromBounds(bounds, { flipX = false, flipY = false } = {}) {
 function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedChange }) {
   let anchorBounds = { x: config.position.x, y: config.position.y, ...COLLAPSED };
   let placement = { flipX: false, flipY: false };
+  let currentMode = 'collapsed';
   const win = new BrowserWindow({
     x: config.position.x,
     y: config.position.y,
@@ -65,9 +66,16 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
   }
 
   function setMode(mode, { flipX = false, flipY = false } = {}) {
+    currentMode = SIZES[mode] ? mode : 'collapsed';
     placement = mode === 'collapsed' ? placement : { flipX, flipY };
     win.setBounds(getAnchoredModeBounds(anchorBounds, mode, placement), true);
     return { mode, flipX, flipY };
+  }
+
+  function moveBy({ dx, dy }) {
+    anchorBounds = { ...anchorBounds, x: Math.round(anchorBounds.x + dx), y: Math.round(anchorBounds.y + dy) };
+    win.setBounds(getAnchoredModeBounds(anchorBounds, currentMode, placement), false);
+    return { x: anchorBounds.x, y: anchorBounds.y };
   }
 
   win.on('move', () => {
@@ -83,7 +91,7 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
     if (channel === 'pet:collapse') setExpanded(false);
   });
 
-  return { win, setExpanded, setMode, sizes: { COLLAPSED, EXPANDED } };
+  return { win, setExpanded, setMode, moveBy, sizes: { COLLAPSED, EXPANDED } };
 }
 
 module.exports = { COLLAPSED, EXPANDED, SIZES, getAnchoredModeBounds, getPetAnchorFromBounds, createPetWindow };

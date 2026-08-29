@@ -4,6 +4,7 @@ import { DEFAULT_PET_PROGRESS, normalizePetProgress, derivePetMood, deriveFlowPe
 import PetAvatar from './PetAvatar.jsx';
 import FlowPeek from './FlowPeek.jsx';
 import PetPanel from './PetPanel.jsx';
+import { classifyPetPointer } from './petPointer.js';
 
 const HOVER_DELAY = 600;
 const LEAVE_DELAY = 250;
@@ -18,6 +19,8 @@ export default function PetWindow() {
   const [placement, setPlacement] = useState({ flipX: false, flipY: false });
   const hoverTimer = useRef(null);
   const leaveTimer = useRef(null);
+  const hoverRequest = useRef(0);
+  const pointer = useRef(null);
 
   useEffect(() => {
     document.documentElement.classList.add('pet-window');
@@ -42,6 +45,7 @@ export default function PetWindow() {
   }, []);
 
   function collapse() {
+    hoverRequest.current += 1;
     window.clearTimeout(hoverTimer.current);
     window.clearTimeout(leaveTimer.current);
     setHovered(false);
@@ -52,13 +56,15 @@ export default function PetWindow() {
   function onEnter() {
     window.clearTimeout(leaveTimer.current);
     window.clearTimeout(hoverTimer.current);
-    hoverTimer.current = window.setTimeout(() => {
-      setHovered(true);
-      requestMode('peek');
+    const requestId = ++hoverRequest.current;
+    hoverTimer.current = window.setTimeout(async () => {
+      const result = await requestMode('peek');
+      if (hoverRequest.current === requestId && result?.mode === 'peek') setHovered(true);
     }, HOVER_DELAY);
   }
   function onLeave() {
     window.clearTimeout(hoverTimer.current);
+    hoverRequest.current += 1;
     leaveTimer.current = window.setTimeout(() => {
       setHovered(false);
       if (!expanded) desktopBridge.petSetMode({ mode: 'collapsed' });
@@ -67,28 +73,49 @@ export default function PetWindow() {
   function cancelLeave() {
     window.clearTimeout(leaveTimer.current);
   }
-  function requestMode(mode) {
+  async function requestMode(mode) {
     const { screenX, screenY, innerWidth, innerHeight } = window;
+    const anchorX = placement.flipX ? screenX + innerWidth - 72 : screenX;
+    const anchorY = placement.flipY ? screenY + innerHeight - 72 : screenY;
     const avail = window.screen || {};
-    const flip = computePetFlip({ anchorX: screenX, anchorY: screenY, contentWidth: mode === 'panel' ? 380 : 380, contentHeight: mode === 'panel' ? 500 : 260, availWidth: avail.availWidth || screenX + 1000, availHeight: avail.availHeight || screenY + 1000 });
-    setPlacement(flip);
-    desktopBridge.petSetMode({ mode, flipX: flip.flipX, flipY: flip.flipY });
+    const flip = computePetFlip({ anchorX, anchorY, contentWidth: mode === 'panel' ? 464 : 444, contentHeight: mode === 'panel' ? 500 : 300, availWidth: avail.availWidth || anchorX + 1000, availHeight: avail.availHeight || anchorY + 1000 });
+    const result = await desktopBridge.petSetMode({ mode, flipX: flip.flipX, flipY: flip.flipY });
+    setPlacement({ flipX: result?.flipX ?? flip.flipX, flipY: result?.flipY ?? flip.flipY });
+    return result;
   }
 
-  function openPanel() {
+  async function openPanel() {
+    if (pointer.current?.dragged) { pointer.current.dragged = false; return; }
     window.clearTimeout(hoverTimer.current);
     window.clearTimeout(leaveTimer.current);
-    setExpanded(true);
-    requestMode('panel');
+    const result = await requestMode('panel');
+    if (result?.mode === 'panel') setExpanded(true);
   }
   function openMain() { desktopBridge.openMain(); }
+
+  function onPointerDown(event) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointer.current = { start: { x: event.screenX, y: event.screenY }, last: { x: event.screenX, y: event.screenY }, dragged: false };
+  }
+  function onPointerMove(event) {
+    const state = pointer.current;
+    if (!state || !(event.buttons & 1)) return;
+    if (!state.dragged && classifyPetPointer(state.start, { x: event.screenX, y: event.screenY }) === 'drag') state.dragged = true;
+    if (!state.dragged) return;
+    const delta = { dx: event.screenX - state.last.x, dy: event.screenY - state.last.y };
+    state.last = { x: event.screenX, y: event.screenY };
+    if (delta.dx || delta.dy) desktopBridge.petMoveBy(delta);
+  }
+  function onPointerUp(event) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  }
 
   const flowPeek = deriveFlowPeek(snapshot.nodes, snapshot.edges, { currentUserId: 'n_design' });
   const mood = derivePetMood({ progress, paused, unread, hovering: hovered && !expanded, expanded });
 
   return (
     <main className={`pet-shell ${hovered && !expanded ? 'pet-shell-peek' : ''} ${expanded ? 'pet-shell-expanded' : ''} ${placement.flipX ? 'pet-flip-x' : ''} ${placement.flipY ? 'pet-flip-y' : ''}`} onMouseEnter={onEnter} onMouseLeave={onLeave} onContextMenu={(e) => { e.preventDefault(); desktopBridge.petOpenMenu(); }}>
-      <PetAvatar mood={mood} progress={progress} unread={unread} paused={paused} onClick={openPanel} />
+      <PetAvatar mood={mood} progress={progress} unread={unread} paused={paused} onClick={openPanel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
       {hovered && !expanded && <FlowPeek peek={flowPeek} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} onMouseEnter={cancelLeave} onMouseLeave={onLeave} />}
       {expanded && <PetPanel progress={progress} peek={flowPeek} pokes={snapshot.pokes} onClose={collapse} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} />}
     </main>

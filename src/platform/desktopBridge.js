@@ -21,5 +21,6 @@ export const desktopBridge = {
   onSessionUpdated: (listener) => desktop?.onSessionUpdated?.(listener) ?? noopUnsubscribe,
   sendPetSnapshot: (snapshot) => desktop?.sendPetSnapshot?.(snapshot) ?? Promise.resolve(null),
   petSetMode: (mode) => desktop?.petSetMode?.(mode) ?? Promise.resolve(null),
+  petMoveBy: (delta) => desktop?.petMoveBy?.(delta) ?? Promise.resolve(delta),
   onPetSnapshot: (listener) => desktop?.onPetSnapshot?.(listener) ?? noopUnsubscribe,
 };
