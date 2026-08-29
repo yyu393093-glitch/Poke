@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, nativeImage, screen } = require('electron');
+const { app, Tray, Menu, globalShortcut, ipcMain, nativeImage, screen } = require('electron');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 const { createMainWindow } = require('./windows/mainWindow.cjs');
 const { createFloatWindow } = require('./windows/floatWindow.cjs');
 const { createPetWindow } = require('./windows/petWindow.cjs');
@@ -12,6 +13,7 @@ let mainWindow;
 let floatWindow;
 let pet;
 let tray;
+let rendererProcess;
 let quitting = false;
 let petPaused = false;
 let petProgress = { ...DEFAULT_PET_PROGRESS };
@@ -21,6 +23,21 @@ let positionStore;
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
+async function ensureRendererServer() {
+  if (process.env.POKE_RENDERER_URL || app.isPackaged) return;
+  const url = 'http://127.0.0.1:5173';
+  try { if ((await fetch(url)).ok) return; } catch { /* start local Vite below */ }
+  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  rendererProcess = spawn(npmCommand, ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '5173'], {
+    cwd: path.join(__dirname, '..'), windowsHide: true, stdio: 'ignore',
+  });
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try { if ((await fetch(url)).ok) return; } catch { /* keep waiting */ }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error('Local renderer did not start on port 5173');
+}
+
 function focusMain() {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createMainWindow({ show: false });
   if (mainWindow.isMinimized()) mainWindow.restore();
@@ -28,33 +45,25 @@ function focusMain() {
   mainWindow.focus();
   return true;
 }
-
 function showAssistant() {
   if (!floatWindow || floatWindow.isDestroyed()) floatWindow = createFloatWindow(DEFAULT_CONFIG);
-  floatWindow.show();
-  floatWindow.focus();
-  return true;
+  floatWindow.show(); floatWindow.focus(); return true;
 }
-
 function toggleAssistant() {
   if (!floatWindow || floatWindow.isDestroyed()) return showAssistant();
   if (floatWindow.isVisible()) { floatWindow.hide(); return false; }
   return showAssistant();
 }
-
 function setAlwaysOnTop(enabled) { floatWindow?.setAlwaysOnTop(enabled); return enabled; }
 function setPetExpanded(expanded) { pet?.setExpanded(Boolean(expanded)); return Boolean(expanded); }
 function setPetPaused(paused) { petPaused = Boolean(paused); pet?.win.webContents.send('pet:paused', petPaused); return petPaused; }
 function resetPet() { petProgress = petStore?.reset() || { ...DEFAULT_PET_PROGRESS }; petStore?.set(petProgress); return petProgress; }
 function broadcastPetProgress(progress) {
-  petProgress = normalizePetProgress(progress);
-  petStore?.set(petProgress);
+  petProgress = normalizePetProgress(progress); petStore?.set(petProgress);
   if (pet && !pet.win.isDestroyed()) pet.win.webContents.send('pet:progress-updated', petProgress);
   return petProgress;
 }
-function broadcastPoke(result) {
-  if (floatWindow && !floatWindow.isDestroyed()) floatWindow.webContents.send('poke:received', result);
-}
+function broadcastPoke(result) { if (floatWindow && !floatWindow.isDestroyed()) floatWindow.webContents.send('poke:received', result); }
 function showPetMenu() {
   if (!pet?.win || pet.win.isDestroyed()) return;
   Menu.buildFromTemplate([
@@ -78,7 +87,8 @@ function createTray() {
 }
 
 if (gotLock) {
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    await ensureRendererServer();
     petStore = createPetProgressStore(path.join(app.getPath('userData'), 'pet-progress.json'));
     petProgress = petStore.get();
     mainWindow = createMainWindow({ show: false });
@@ -92,11 +102,8 @@ if (gotLock) {
     globalShortcut.register('Alt+A', showAssistant);
     screen.on('display-metrics-changed', () => { const position = positionStore.set(pet.win.getBounds()); pet.win.setPosition(position.x, position.y); });
     app.on('activate', focusMain);
-  });
+  }).catch((error) => { console.error(error); app.quit(); });
 }
-
 app.on('second-instance', focusMain);
-app.on('before-quit', (event) => {
-  if (!quitting) { event.preventDefault(); mainWindow?.hide(); floatWindow?.hide(); }
-});
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('before-quit', (event) => { if (!quitting) { event.preventDefault(); mainWindow?.hide(); floatWindow?.hide(); } });
+app.on('will-quit', () => { globalShortcut.unregisterAll(); rendererProcess?.kill(); });
