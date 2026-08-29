@@ -71,3 +71,11 @@ export function clockOff() {
 export function fetchMetrics() {
   return request('/api/metrics');
 }
+
+/** 取 Leader 下发给某个负责人的要求，由后端按规则拆成分点分条 */
+export function fetchRequirements(owner) {
+  return request('/api/ai/requirements', {
+    method: 'POST',
+    body: JSON.stringify({ owner }),
+  });
+}

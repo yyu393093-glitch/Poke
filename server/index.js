@@ -103,6 +103,52 @@ app.get('/api/metrics', (_request, response) => {
   delayResponse(response, { doneToday: 3, alignedPeople: 5, blocked: 0 });
 });
 
+/**
+ * 把 Leader 的一段话拆成分点分条的要求。
+ * 真实版本会调 LLM；本 demo 按写死的规则拆（见开发契约禁令第 3 条）。
+ */
+function splitBrief(raw) {
+  const P0 = ['必须', '务必', '一定', '不然', '立刻', '优先保证'];
+  const P2 = ['尽量', '方便', '如果', '可以', '就行'];
+  const DUE = /(今天\s*\d{1,2}:\d{2}|今天|明天|本周内|本周|下周)/;
+
+  return raw
+    .split(/[；;。]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 3)
+    .map((sentence, index) => {
+      const hit = (words) => words.some((word) => sentence.includes(word));
+      const priority = hit(P0) ? 'P0' : hit(P2) ? 'P2' : 'P1';
+      const due = sentence.match(DUE)?.[1] ?? null;
+      // 标题取第一个逗号前的短句，太长就截断
+      const head = sentence.split(/[，,、]/)[0];
+      const title = head.length > 16 ? `${head.slice(0, 16)}…` : head;
+
+      return { id: `r${index + 1}`, title, detail: sentence, priority, due };
+    });
+}
+
+app.post('/api/ai/requirements', (request, response) => {
+  const data = readMockData();
+  const owner = request.body?.owner;
+  const brief = data.leaderBriefs?.[owner];
+
+  if (!brief) {
+    response.status(404).json({ error: `no brief for owner: ${owner}` });
+    return;
+  }
+
+  delayResponse(response, {
+    owner,
+    role: brief.role,
+    nodeId: brief.nodeId,
+    from: data.leader,
+    raw: brief.raw,
+    items: splitBrief(brief.raw),
+    parsedBy: 'rule-based',
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Poke server listening on http://localhost:${PORT}`);
 });

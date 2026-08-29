@@ -33,6 +33,25 @@
   flex: none;
   transform-origin: center center;
   user-select: none;
+  overflow: hidden;
+}
+
+/* 可缩放/平移的世界层。zoom=1 且无位移时组件不给 transform，
+   保证静止画面与定稿图逐像素一致。 */
+.pk-world {
+  position: absolute;
+  inset: 0;
+  width: 1536px;
+  height: 1024px;
+  transform-origin: 0 0;
+}
+
+.pk-world.is-pannable { cursor: grab; }
+.pk-world.is-pannable:active { cursor: grabbing; }
+
+/* 拖动中不加过渡（1:1 跟手）；松手后才回弹 */
+.pk-world.is-settling {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .pk-stage__base {
@@ -494,6 +513,221 @@
   to   { opacity: 0; transform: scale(1.9); }
 }
 
+/* ---------- 缩略地图 ---------- */
+.pk-minimap-hit { border-radius: 18px; }
+
+.pk-minimap-view {
+  position: absolute;
+  border-radius: 4px;
+  border: 2px solid rgba(47, 111, 208, 0.95);
+  background: rgba(47, 111, 208, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  z-index: 12;
+  transition: left 420ms cubic-bezier(0.22, 1, 0.36, 1),
+              top 420ms cubic-bezier(0.22, 1, 0.36, 1),
+              width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+              height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Leader 项目要求（占原「影响涟漪」的位置） ---------- */
+.pk-req {
+  position: absolute;
+  border-radius: 18px;
+  background: rgba(247, 250, 253, 0.82);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  padding: 13px 15px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  color: var(--pk-ink);
+  z-index: 14;
+  overflow: hidden;
+}
+
+.pk-req__empty {
+  margin: auto;
+  text-align: center;
+  color: var(--pk-ink-soft);
+}
+
+.pk-req__empty strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pk-ink);
+  margin-bottom: 6px;
+}
+
+.pk-req__empty p { margin: 0; font-size: 13.5px; }
+
+.pk-req__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: none;
+}
+
+.pk-req__head h3 { margin: 0; font-size: 16px; font-weight: 700; }
+
+.pk-req__from { font-size: 12.5px; color: var(--pk-ink-soft); flex: 1; }
+
+.pk-req__close {
+  border: 0;
+  background: transparent;
+  font-size: 17px;
+  line-height: 1;
+  color: #6a7480;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  flex: none;
+  transition: background-color 140ms ease-out, transform 110ms ease-out;
+}
+
+.pk-req__close:hover { background: rgba(20, 40, 70, 0.09); }
+.pk-req__close:active { transform: scale(0.9); }
+
+.pk-req__loading {
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--pk-ink-soft);
+}
+
+.pk-req__loading .pk-loading__orbit {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+  border-color: rgba(40, 70, 110, 0.2);
+  border-top-color: rgba(47, 111, 208, 0.95);
+}
+
+.pk-req__list {
+  margin: 9px 0 0;
+  padding: 0 4px 0 0;
+  list-style: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.pk-req__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  /* 逐条落下，呼应「AI 正在拆解」 */
+  animation: pk-req-item 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-req-item {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pk-req__pri {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 5px;
+  padding: 2px 5px;
+  margin-top: 1px;
+  letter-spacing: 0.02em;
+}
+
+.pk-req__pri--P0 { background: rgba(226, 76, 61, 0.16); color: #a72d20; }
+.pk-req__pri--P1 { background: rgba(47, 111, 208, 0.14); color: #23528f; }
+.pk-req__pri--P2 { background: rgba(120, 132, 145, 0.18); color: #4d5866; }
+
+.pk-req__body {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #2b3644;
+}
+
+.pk-req__due {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a8500f;
+  background: rgba(233, 120, 45, 0.16);
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-top: 1px;
+}
+
+.pk-req__foot { flex: none; padding-top: 9px; }
+.pk-req__foot .pk-btn { width: 100%; padding: 7px 10px; font-size: 13px; }
+
+/* ---------- 放大时的固定视图控制条 ---------- */
+.pk-viewctl {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 14px;
+  background: rgba(18, 32, 50, 0.86);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 14px 32px rgba(8, 18, 34, 0.4);
+  color: #eaf1fb;
+  animation: pk-viewctl-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pk-viewctl-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pk-viewctl button {
+  border: 0;
+  background: rgba(255, 255, 255, 0.1);
+  color: #eaf1fb;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+  width: 32px;
+  height: 30px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, transform 110ms ease-out;
+}
+
+.pk-viewctl button:hover:not([disabled]) { background: rgba(255, 255, 255, 0.2); }
+.pk-viewctl button:active:not([disabled]) { transform: scale(0.94); transition-duration: 90ms; }
+.pk-viewctl button:focus-visible { outline: 3px solid rgba(120, 175, 255, 0.95); outline-offset: 2px; }
+.pk-viewctl button[disabled] { opacity: 0.4; cursor: default; }
+
+.pk-viewctl span {
+  min-width: 46px;
+  text-align: center;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.pk-viewctl__reset {
+  width: auto !important;
+  padding: 0 12px;
+  font-size: 13px !important;
+}
+
 /* ---------- Toast ---------- */
 .pk-toast {
   position: absolute;
@@ -588,4 +822,8 @@
   .pk-ripple { animation: pk-fade-in 180ms ease-out both; }
   .pk-hit:active { transform: none; }
   .pk-loading__orbit { animation-duration: 2.4s; }
+
+  .pk-world.is-settling { transition: transform 200ms ease-out; }
+  .pk-minimap-view { transition: none; }
+  .pk-req__list li { animation: pk-fade-in 180ms ease-out both; }
 }

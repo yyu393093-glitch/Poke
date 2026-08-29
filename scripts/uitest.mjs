@@ -138,8 +138,11 @@ async function main() {
   r['关闭后通知条'] = await count('.pk-notice');
   await shot('05-notice-closed');
 
-  console.log('[6] 收工关灯');
-  await clickBy(byLabel('收工关灯'), '收工关灯');
+  console.log('[6] 打开小陈的要求 → 我收工了');
+  await clickBy(byLabel('查看 小陈 的项目要求'), '小陈 头像');
+  await sleep(1200);
+  r['小陈要求条目数'] = await count('.pk-req__list li');
+  await clickBy(`[...document.querySelectorAll('.pk-req__foot .pk-btn')][0]`, '我收工了');
   await sleep(900);
   r['关灯遮罩'] = await count('.pk-lightsoff');
   await shot('06-lights-off');
@@ -149,6 +152,53 @@ async function main() {
   await sleep(500);
   r['关灯后 toast'] = (await text('.pk-toast')).slice(0, 46);
   await shot('07-poke-after-off');
+
+  console.log('[8] 影响涟漪已移除、要求面板占位');
+  r['影响涟漪面板已移除'] = (await text('.pk-world')).includes('影响涟漪') === false;
+  r['要求面板占位存在'] = await count('.pk-req');
+
+  console.log('[9] 点头像 → Leader 要求 AI 分点');
+  await clickBy(byLabel('查看 阿May 的项目要求'), '阿May 头像');
+  await sleep(1200);
+  r['要求条目数'] = await count('.pk-req__list li');
+  r['要求来源'] = (await text('.pk-req__from')).slice(0, 24);
+  r['优先级标签'] = await evalJs(
+    `[...document.querySelectorAll('.pk-req__pri')].map(e => e.textContent).join(',')`,
+  );
+  await shot('08-requirements');
+
+  console.log('[10] 缩放：放大 → 世界层出现 transform + 缩略图视口框');
+  await clickBy(byLabel('放大地图'), '放大');
+  await sleep(700);
+  r['放大后 transform'] = await evalJs(
+    `document.querySelector('.pk-world').style.transform || '(none)'`,
+  );
+  r['缩略图视口框'] = await count('.pk-minimap-view');
+  await shot('09-zoomed-in');
+
+  // 放大后底图上的控件会移出视野，这里用固定的悬浮控制条
+  console.log('[11] 悬浮控制条应可达（放大后底图控件已移出视野）');
+  r['悬浮控制条出现'] = await count('.pk-viewctl');
+  r['缩放读数'] = await text('.pk-viewctl span');
+  await shot('10-zoom-controls');
+
+  console.log('[12] 悬浮条重置视图 → 回到无 transform');
+  await clickBy(`[...document.querySelectorAll('.pk-viewctl button')].find(b => b.textContent.includes('重置'))`, '重置视图');
+  await sleep(900);
+  r['重置后 transform'] = await evalJs(
+    `document.querySelector('.pk-world').style.transform || '(none)'`,
+  );
+  r['重置后视口框'] = await count('.pk-minimap-view');
+  r['重置后悬浮条'] = await count('.pk-viewctl');
+  await shot('11-view-reset');
+
+  console.log('[13] 缩略地图定位（视图已重置，控件回到原位）');
+  await clickBy(byLabel('缩略地图'), '缩略地图');
+  await sleep(900);
+  r['缩略图定位后 transform'] = await evalJs(
+    `document.querySelector('.pk-world').style.transform || '(none)'`,
+  );
+  await shot('12-minimap-jump');
 
   r['控制台错误'] = errors;
 
