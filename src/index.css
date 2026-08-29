@@ -129,4 +129,5 @@ button {
 /* PetWindow hover/expand container */
 .pet-shell { position: relative; width: 72px; height: 72px; color: white; overflow: visible; }
 .pet-shell-expanded { width: 380px; height: 500px; }
-.flow-peek { right: 0; bottom: 0; }
+.pet-shell-peek { width: 380px; height: 360px; }
+.flow-peek { right: 0; bottom: 72px; }

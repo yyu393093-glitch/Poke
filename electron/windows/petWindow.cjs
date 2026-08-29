@@ -5,7 +5,7 @@ const COLLAPSED = { width: 72, height: 72 };
 const EXPANDED = { width: 280, height: 140 };
 const SIZES = {
   collapsed: { width: 72, height: 72 },
-  peek: { width: 380, height: 260 },
+  peek: { width: 380, height: 360 },
   panel: { width: 380, height: 500 },
 };
 
@@ -21,7 +21,7 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
     resizable: false,
     skipTaskbar: true,
     show: false,
-    focusable: false,
+    focusable: true,
     hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.cjs'),

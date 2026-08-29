@@ -45,6 +45,7 @@ export default function PetWindow() {
 
   function onEnter() {
     window.clearTimeout(leaveTimer.current);
+    window.clearTimeout(hoverTimer.current);
     hoverTimer.current = window.setTimeout(() => {
       setHovered(true);
       requestMode('peek');
@@ -68,6 +69,8 @@ export default function PetWindow() {
   }
 
   function openPanel() {
+    window.clearTimeout(hoverTimer.current);
+    window.clearTimeout(leaveTimer.current);
     setExpanded(true);
     requestMode('panel');
   }
@@ -77,8 +80,8 @@ export default function PetWindow() {
   const mood = derivePetMood({ progress, paused, unread, hovering: hovered && !expanded, expanded });
 
   return (
-    <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''}`} onMouseEnter={onEnter} onMouseLeave={onLeave} onContextMenu={(e) => { e.preventDefault(); desktopBridge.petOpenMenu(); }}>
-      <PetAvatar mood={mood} progress={progress} unread={unread} paused={paused} onClick={openPanel} onMouseEnter={onEnter} onMouseLeave={onLeave} />
+    <main className={`pet-shell ${hovered && !expanded ? 'pet-shell-peek' : ''} ${expanded ? 'pet-shell-expanded' : ''}`} onMouseEnter={onEnter} onMouseLeave={onLeave} onContextMenu={(e) => { e.preventDefault(); desktopBridge.petOpenMenu(); }}>
+      <PetAvatar mood={mood} progress={progress} unread={unread} paused={paused} onClick={openPanel} />
       {hovered && !expanded && <FlowPeek peek={flowPeek} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} onMouseEnter={cancelLeave} onMouseLeave={onLeave} />}
       {expanded && <PetPanel progress={progress} peek={flowPeek} pokes={snapshot.pokes} onClose={collapse} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} />}
     </main>
