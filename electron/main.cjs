@@ -52,6 +52,11 @@ function broadcastPetProgress(progress) {
   if (pet && !pet.win.isDestroyed()) pet.win.webContents.send('pet:progress-updated', petProgress);
   return petProgress;
 }
+function broadcastPetSnapshot(snapshot) {
+  if (pet && !pet.win.isDestroyed()) pet.win.webContents.send('pet:snapshot-updated', snapshot);
+  return true;
+}
+function setPetMode(mode) { return pet?.setMode(mode.mode, mode); }
 function broadcastPoke(result) {
   if (floatWindow && !floatWindow.isDestroyed()) floatWindow.webContents.send('poke:received', result);
 }
@@ -88,7 +93,7 @@ if (gotLock) {
     pet = createPetWindow({ config: petConfig, onClick: focusMain, onContextMenu: showPetMenu, onMove: (position) => positionStore.set(position) });
     pet.win.webContents.once('did-finish-load', () => pet.win.webContents.send('pet:progress-updated', petProgress));
     createTray();
-    registerHandlers({ ipcMain, showMain: focusMain, showAssistant, toggleAssistant, setAlwaysOnTop, setPetExpanded, setPetPaused, resetPet, showPetMenu, broadcastPoke, broadcastPetProgress });
+    registerHandlers({ ipcMain, showMain: focusMain, showAssistant, toggleAssistant, setAlwaysOnTop, setPetExpanded, setPetPaused, resetPet, showPetMenu, broadcastPoke, broadcastPetProgress, broadcastPetSnapshot, setPetMode });
     globalShortcut.register('Alt+A', showAssistant);
     screen.on('display-metrics-changed', () => { const position = positionStore.set(pet.win.getBounds()); pet.win.setPosition(position.x, position.y); });
     app.on('activate', focusMain);

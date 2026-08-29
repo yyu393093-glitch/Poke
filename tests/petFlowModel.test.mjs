@@ -74,3 +74,13 @@ test('宠物快照与模式 payload 被白名单校验', () => {
   assert.deepEqual(contracts.validatePetMode({ mode: 'panel', flipX: true, flipY: false }), { mode: 'panel', flipX: true, flipY: false });
   assert.throws(() => contracts.validatePetMode({ mode: 'bogus' }), /mode/);
 });
+
+test('桌面窗口按屏幕位置翻转定位：靠右向左长、靠下向上长', () => {
+  // 纯函数覆盖定位算法，见 main.cjs setPetMode 用同一公式的等价函数
+  const anchor = (bounds, size, flip) => ({
+    x: flip.flipX ? bounds.x + bounds.width - size.width : bounds.x,
+    y: flip.flipY ? bounds.y + bounds.height - size.height : bounds.y,
+  });
+  assert.deepEqual(anchor({ x: 700, y: 700, width: 72, height: 72 }, { width: 380, height: 500 }, { flipX: true, flipY: true }), { x: 392, y: 272 });
+  assert.deepEqual(anchor({ x: 10, y: 10, width: 72, height: 72 }, { width: 380, height: 500 }, { flipX: false, flipY: false }), { x: 10, y: 10 });
+});

@@ -1,7 +1,7 @@
-const { validatePokePayload, validateChatPayload } = require('./contracts.cjs');
+const { validatePokePayload, validateChatPayload, validatePetSnapshot, validatePetMode } = require('./contracts.cjs');
 const { sendPoke } = require('../services/pokeService.cjs');
 const { sendChat } = require('../services/chatService.cjs');
-function registerHandlers({ ipcMain, showMain, showAssistant, toggleAssistant, setAlwaysOnTop, setPetExpanded, setPetPaused, resetPet, showPetMenu, broadcastPoke, broadcastPetProgress }) {
+function registerHandlers({ ipcMain, showMain, showAssistant, toggleAssistant, setAlwaysOnTop, setPetExpanded, setPetPaused, resetPet, showPetMenu, broadcastPoke, broadcastPetProgress, broadcastPetSnapshot, setPetMode }) {
   ipcMain.handle('main:open', () => showMain());
   ipcMain.handle('pet:set-expanded', (_event, expanded) => setPetExpanded(Boolean(expanded)));
   ipcMain.on('pet:click', () => showMain());
@@ -14,5 +14,7 @@ function registerHandlers({ ipcMain, showMain, showAssistant, toggleAssistant, s
   ipcMain.handle('poke:send', async (_event, payload) => { const result = await sendPoke(validatePokePayload(payload)); broadcastPoke(result); return result; });
   ipcMain.handle('chat:send', async (_event, payload) => sendChat(validateChatPayload(payload)));
   ipcMain.handle('pet:progress', (_event, progress) => broadcastPetProgress(progress));
+  ipcMain.handle('pet:snapshot', (_event, snapshot) => broadcastPetSnapshot(validatePetSnapshot(snapshot)));
+  ipcMain.handle('pet:set-mode', (_event, mode) => setPetMode(validatePetMode(mode)));
 }
 module.exports = { registerHandlers };
