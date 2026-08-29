@@ -4,7 +4,11 @@ import { clockOff, completeNode, fetchRequirements, pokeTask } from '../api/game
 import referenceDashboard from '../assets/poke-reference-dashboard.png';
 import cleanPlate from '../assets/poke-map-clean.png';
 import '../styles/dashboard.css';
+import { FEATURE_POKE_DEMO_MODE } from '../config/features.js';
+import FakeIMWindow from './FakeIMWindow.jsx';
+import FlyingLamp from './FlyingLamp.jsx';
 import NodeCard from './NodeCard.jsx';
+import { completeDemoFlight } from './pokeModel.js';
 
 const STAGE_W = 1536;
 const STAGE_H = 1024;
@@ -69,6 +73,7 @@ const MASCOT = { x: 80, y: 600 };
 const CURRENT_USER = '小陈';
 const STATUS_LABEL = { done: '已完成', doing: '进行中', todo: '未开始' };
 const DRAG_THRESHOLD = 6;
+const IM_WINDOW_CENTER = { right: 500, bottom: 164 };
 
 function px([left, top, width, height]) {
   return { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` };
@@ -110,6 +115,8 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   const [doneToday, setDoneToday] = useState(3);
   const [lightsOff, setLightsOff] = useState(false);
   const [fit, setFit] = useState(1);
+  const [imMessages, setImMessages] = useState([]);
+  const [delivery, setDelivery] = useState(null);
 
   // 视图（缩放 + 平移）；zoom=1 且无位移时不加 transform，静止画面保持逐像素一致
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
@@ -126,6 +133,7 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   const stageRef = useRef(null);
   const dragRef = useRef(null);
   const didDragRef = useRef(false);
+  const deliveryRef = useRef(null);
 
   const isDefaultView = view.zoom === 1 && view.x === 0 && view.y === 0;
 
@@ -146,6 +154,14 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   useEffect(() => () => {
     window.clearTimeout(toastTimer.current);
     flyerTimer.current.forEach(window.clearTimeout);
+    deliveryRef.current = null;
+  }, []);
+
+  const finishDemoDelivery = useCallback(() => {
+    const currentDelivery = deliveryRef.current;
+    deliveryRef.current = null;
+    setImMessages((messages) => completeDemoFlight(currentDelivery, messages).messages);
+    setDelivery(null);
   }, []);
 
   const showToast = useCallback((message) => {
@@ -278,6 +294,15 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   const findNode = (id) => liveNodes.find((node) => node.id === id);
   const popoverNode = popoverId ? findNode(popoverId) : null;
 
+  function toViewportPoint(point) {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    return {
+      x: rect.left + (view.x + point.x * view.zoom) * fitRef.current,
+      y: rect.top + (view.y + point.y * view.zoom) * fitRef.current,
+    };
+  }
+
   function pushLog(entry) {
     setNewLogs((items) => [{ id: `${Date.now()}-${entry.to}`, ...entry }, ...items].slice(0, 1));
   }
@@ -324,7 +349,17 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
 
     try {
       const result = await pokeTask(from, targetId);
-      pushLog({ from, to: target.owner, message: result.message, time: nowTime() });
+      const entry = { id: `poke-${Date.now()}`, from, to: target.owner, message: result.message, time: nowTime() };
+      pushLog(entry);
+      if (FEATURE_POKE_DEMO_MODE) {
+        const nextDelivery = {
+          poke: entry,
+          from: toViewportPoint({ x: destX, y: destY }),
+          to: { x: window.innerWidth - IM_WINDOW_CENTER.right, y: window.innerHeight - IM_WINDOW_CENTER.bottom },
+        };
+        deliveryRef.current = nextDelivery;
+        setDelivery(nextDelivery);
+      }
       showToast(`已公开戳一戳 ${target.owner}：${result.message}`);
     } catch (error) {
       console.error(error);
@@ -400,7 +435,8 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
   };
 
   return (
-    <div className="pk-screen">
+    <>
+      <div className="pk-screen">
       <section
         ref={stageRef}
         className="pk-stage"
@@ -689,6 +725,16 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
 
         {toast && <div className="pk-toast" role="status">{toast}</div>}
       </section>
-    </div>
+      </div>
+      {FEATURE_POKE_DEMO_MODE && <FakeIMWindow messages={imMessages} />}
+      {FEATURE_POKE_DEMO_MODE && delivery && (
+        <FlyingLamp
+          from={delivery.from}
+          to={delivery.to}
+          duration={1500}
+          onArrive={finishDemoDelivery}
+        />
+      )}
+    </>
   );
 }
