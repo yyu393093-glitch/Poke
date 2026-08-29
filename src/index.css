@@ -32,3 +32,23 @@ button {
     radial-gradient(circle at 14% 82%, rgb(41 82 98 / 22%), transparent 34%),
     linear-gradient(145deg, #111827 0%, #080b16 55%, #111329 100%);
 }
+
+.pet-shell { position: relative; width: 72px; height: 72px; color: white; }
+.pet-shell-expanded { width: 280px; height: 140px; }
+.pet-core { position: absolute; right: 0; bottom: 0; width: 72px; height: 72px; border: 1px solid rgb(125 211 252 / 65%); border-radius: 999px; background: radial-gradient(circle at 35% 25%, #fef3c7, #38bdf8 48%, #312e81 100%); box-shadow: 0 0 0 6px rgb(56 189 248 / 12%), 0 12px 36px rgb(0 0 0 / 38%); cursor: pointer; }
+.pet-core:focus-visible { outline: 3px solid #f8fafc; outline-offset: 3px; }
+.pet-orb { display: grid; place-items: center; font-size: 30px; }
+.pet-status { position: absolute; top: 4px; right: 2px; display: grid; width: 20px; height: 20px; place-items: center; border: 2px solid #0f172a; border-radius: 999px; background: #fb7185; font-size: 12px; font-weight: 800; }
+.phase-normal { animation: pet-breathe 2.8s ease-in-out infinite; }
+.phase-blocked { box-shadow: 0 0 0 6px rgb(251 113 133 / 16%), 0 12px 36px rgb(0 0 0 / 38%); }
+.pet-paused, .phase-off { animation: none; }
+.pet-card { position: absolute; right: 0; bottom: 0; width: 280px; min-height: 140px; padding: 14px 16px; border: 1px solid; border-radius: 18px; color: #f8fafc; box-shadow: 0 16px 44px rgb(0 0 0 / 42%); animation: pet-card-in 200ms ease-out both; }
+.pet-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+.pet-card-head span, .pet-card-sub { color: #cbd5e1; font-size: 11px; }
+.pet-card-metric { margin-top: 8px; font-size: 13px; }
+.pet-card-metric strong { margin-left: 5px; font-size: 22px; }
+.pet-card p { margin: 8px 0; color: #e2e8f0; font-size: 11px; line-height: 1.4; }
+.pet-card-link { border: 0; padding: 0; background: transparent; color: #7dd3fc; cursor: pointer; font-size: 11px; }
+@keyframes pet-breathe { 50% { transform: translateY(-2px); box-shadow: 0 0 0 9px rgb(52 211 153 / 12%), 0 12px 36px rgb(0 0 0 / 38%); } }
+@keyframes pet-card-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .phase-normal, .pet-card { animation: none; } }

@@ -7,6 +7,7 @@ import PokeAction from '../components/PokeAction.jsx';
 import PokeLog from '../components/PokeLog.jsx';
 import RippleView from '../components/RippleView.jsx';
 import { completeDesign, deriveMetrics, FALLBACK_EDGES, FALLBACK_NODES, getNodeAnchorSelector, getPrimaryAction } from '../components/networkModel.js';
+import { derivePetProgress } from '../components/petModel.js';
 import { completeDemoFlight, getPokePresentation, getPushToast } from '../components/pokeModel.js';
 import { FEATURE_POKE_DEMO_MODE } from '../config/features.js';
 import { PHASES, useGame } from '../context/GameContext.jsx';
@@ -68,6 +69,7 @@ export default function NetworkPage() {
   const metrics = useMemo(() => deriveMetrics(state.nodes), [state.nodes]);
   const action = useMemo(() => getPrimaryAction(selectedId, state.nodes), [selectedId, state.nodes]);
   useEffect(() => { dispatch({ type: 'SET_METRICS', payload: metrics }); }, [dispatch, metrics]);
+  useEffect(() => { desktopBridge.updatePetProgress(derivePetProgress(state.nodes)); }, [state.nodes]);
 
   async function completeCurrentDesign() {
     setBusy(true);

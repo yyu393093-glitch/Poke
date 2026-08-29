@@ -1,5 +1,17 @@
-﻿const DEFAULT_CONFIG = { position: { x: 0, y: 0 }, size: { width: 420, height: 600 }, alwaysOnTop: false, globalHotkey: 'Alt+A', isMinToFloatBall: false };
+const DEFAULT_CONFIG = { position: { x: 0, y: 0 }, size: { width: 420, height: 600 }, alwaysOnTop: false, globalHotkey: 'Alt+A', isMinToFloatBall: false };
 function normalizeWindowConfig(input = {}, workArea = { x: 0, y: 0, width: 1440, height: 900 }) { const validSize = input.size && Number.isFinite(input.size.width) && Number.isFinite(input.size.height) && input.size.width >= 280 && input.size.width <= 900 && input.size.height >= 240 && input.size.height <= 900; const size = validSize ? { width: input.size.width, height: input.size.height } : DEFAULT_CONFIG.size; const positionValid = input.position && Number.isFinite(input.position.x) && Number.isFinite(input.position.y) && input.position.x >= workArea.x && input.position.y >= workArea.y && input.position.x <= workArea.x + workArea.width - size.width && input.position.y <= workArea.y + workArea.height - size.height; const rawPosition = positionValid ? input.position : DEFAULT_CONFIG.position; const position = { x: rawPosition.x, y: rawPosition.y }; return { position, size, alwaysOnTop: input.alwaysOnTop === true, globalHotkey: typeof input.globalHotkey === 'string' && input.globalHotkey.trim() ? input.globalHotkey : DEFAULT_CONFIG.globalHotkey, isMinToFloatBall: input.isMinToFloatBall === true }; }
 module.exports = { DEFAULT_CONFIG, normalizeWindowConfig };
 
 
+
+const fs = require('node:fs');
+const path = require('node:path');
+function createConfigStore(filePath) {
+  let current = { ...DEFAULT_CONFIG };
+  try { current = normalizeWindowConfig(JSON.parse(fs.readFileSync(filePath, 'utf8'))); } catch { /* use safe defaults */ }
+  return {
+    get: () => ({ ...current, position: { ...current.position }, size: { ...current.size } }),
+    set: (value) => { current = normalizeWindowConfig({ ...current, ...value }); fs.mkdirSync(path.dirname(filePath), { recursive: true }); fs.writeFileSync(filePath, JSON.stringify(current, null, 2), 'utf8'); return current; },
+  };
+}
+module.exports.createConfigStore = createConfigStore;
