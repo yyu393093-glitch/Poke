@@ -10,7 +10,7 @@ const NODE_POS = {
   downstream1: { x: 240, y: 160 },
 };
 
-export default function FlowPeek({ peek, onOpenNetwork, onPokeUpstream }) {
+export default function FlowPeek({ peek, onOpenNetwork, onPokeUpstream, onMouseEnter, onMouseLeave }) {
   const [selectedId, setSelectedId] = useState(null);
   const positions = {};
   let downIdx = 0;
@@ -21,7 +21,7 @@ export default function FlowPeek({ peek, onOpenNetwork, onPokeUpstream }) {
   });
   const selected = peek.nodes.find((n) => n.id === selectedId);
   return (
-    <section className="flow-peek" role="dialog" aria-label="协作流程预览">
+    <section className="flow-peek" role="dialog" aria-label="协作流程预览" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <header className="flow-peek-head">
         <b>{peek.summary.blockers}个阻塞 · {peek.summary.downstreamCount}个下游</b>
         {selected && <span className="flow-peek-selected">已选：{selected.name} · {selected.owner}</span>}

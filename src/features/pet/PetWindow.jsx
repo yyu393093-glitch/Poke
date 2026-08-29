@@ -32,7 +32,7 @@ export default function PetWindow() {
     const onKey = (e) => { if (e.key === 'Escape') collapse(); };
     window.addEventListener('blur', onBlur);
     window.addEventListener('keydown', onKey);
-    return () => { offSnap(); offProgress(); offPaused?.(); offError?.(); window.removeEventListener('blur', onBlur); window.removeEventListener('keydown', onKey); };
+    return () => { offSnap(); offProgress(); offPaused?.(); offError?.(); window.removeEventListener('blur', onBlur); window.removeEventListener('keydown', onKey); window.clearTimeout(hoverTimer.current); window.clearTimeout(leaveTimer.current); };
   }, []);
 
   function collapse() {
@@ -57,6 +57,9 @@ export default function PetWindow() {
       if (!expanded) desktopBridge.petSetMode({ mode: 'collapsed' });
     }, LEAVE_DELAY);
   }
+  function cancelLeave() {
+    window.clearTimeout(leaveTimer.current);
+  }
   function requestMode(mode) {
     const { screenX, screenY, innerWidth, innerHeight } = window;
     const avail = window.screen || {};
@@ -76,7 +79,7 @@ export default function PetWindow() {
   return (
     <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''}`} onMouseEnter={onEnter} onMouseLeave={onLeave} onContextMenu={(e) => { e.preventDefault(); desktopBridge.petOpenMenu(); }}>
       <PetAvatar mood={mood} progress={progress} unread={unread} paused={paused} onClick={openPanel} onMouseEnter={onEnter} onMouseLeave={onLeave} />
-      {hovered && !expanded && <FlowPeek peek={flowPeek} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} />}
+      {hovered && !expanded && <FlowPeek peek={flowPeek} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} onMouseEnter={cancelLeave} onMouseLeave={onLeave} />}
       {expanded && <PetPanel progress={progress} peek={flowPeek} pokes={snapshot.pokes} onClose={collapse} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} />}
     </main>
   );
