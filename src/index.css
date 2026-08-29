@@ -66,4 +66,12 @@ button {
 .capybara-mascot::after { content: '·'; position: absolute; left: 31px; bottom: 24px; z-index: 4; color: #713f12; font-size: 17px; font-weight: 900; }
 .pet-core { overflow: visible; border-color: rgb(250 204 21 / 70%); background: rgb(255 251 235 / 94%); }
 .pet-orb { display: none; }
-.phase-blocked .capybara-mascot { filter: saturate(1.1); }
+.phase-blocked .capybara-mascot { filter: saturate(1.1); }.pet-shell:has(.pet-drop-card) { width: 260px; height: 128px; }
+.pet-drop-card { position: absolute; right: 0; bottom: 0; width: 190px; padding: 12px 14px; border: 1px solid #f6c453; border-radius: 16px; background: rgb(61 39 20 / 94%); color: #fff7d6; box-shadow: 0 12px 34px rgb(0 0 0 / 35%); animation: pet-drop-pop 180ms ease-out both; }
+.pet-drop-card strong, .pet-drop-card small { display: block; }
+.pet-drop-card strong { font-size: 13px; }
+.pet-drop-card small { margin-top: 4px; max-width: 160px; overflow: hidden; color: #f8dca0; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.pet-drop-eating .pet-core { animation: pet-eat 360ms ease-in-out infinite alternate; }
+.pet-drop-consumed .pet-core { box-shadow: 0 0 0 10px rgb(250 204 21 / 24%), 0 12px 36px rgb(0 0 0 / 38%); }
+@keyframes pet-eat { from { transform: scale(1); } to { transform: scale(.9) translateY(3px); } }
+@keyframes pet-drop-pop { from { opacity: 0; transform: translateY(8px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
