@@ -42,6 +42,13 @@ export function getFloatingWindowOffset(detailWidth = 320, gap = 20) {
   return { right: detailWidth + gap, bottom: gap };
 }
 
+export function clampFloatingWindowPosition(position, viewport, windowSize) {
+  return {
+    x: Math.min(Math.max(0, position.x), Math.max(0, viewport.width - windowSize.width)),
+    y: Math.min(Math.max(0, position.y), Math.max(0, viewport.height - windowSize.height)),
+  };
+}
+
 export function completeDemoFlight(flight, messages) {
   return {
     flight: null,

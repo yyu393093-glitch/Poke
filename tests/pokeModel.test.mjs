@@ -38,6 +38,25 @@ test('演示悬浮窗会避开右侧任务详情操作区', () => {
   assert.deepEqual(model.getFloatingWindowOffset(320, 20), { right: 340, bottom: 20 });
 });
 
+test('拖动演示悬浮窗时不会移出可视区域', () => {
+  assert.deepEqual(
+    model.clampFloatingWindowPosition(
+      { x: -30, y: 760 },
+      { width: 1200, height: 800 },
+      { width: 320, height: 288 },
+    ),
+    { x: 0, y: 512 },
+  );
+  assert.deepEqual(
+    model.clampFloatingWindowPosition(
+      { x: 500, y: 200 },
+      { width: 1200, height: 800 },
+      { width: 320, height: 288 },
+    ),
+    { x: 500, y: 200 },
+  );
+});
+
 test('灯仔抵达后会把催办消息放入悬浮窗并结束飞行', () => {
   assert.ok(model, 'pokeModel 尚未实现');
   const poke = { id: 'poke-1', message: '请确认进度' };
