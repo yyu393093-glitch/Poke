@@ -1,86 +1,102 @@
-const STATUS_LABEL = {
-  done: '已完成',
-  doing: '进行中',
-  todo: '未开始',
+const STATUS = {
+  done: { label: '已完成', tag: 'pk-tag--done' },
+  doing: { label: '进行中', tag: 'pk-tag--doing' },
+  todo: { label: '未开始', tag: 'pk-tag--todo' },
 };
 
-function getDownstream(node, nodes, edges) {
-  const visited = new Set();
+/** 用 edges 递归推导下游影响链（md 03 §5「延期连锁影响」） */
+export function downstreamOf(nodeId, nodes, edges) {
+  const seen = new Set();
+  const queue = [nodeId];
 
-  function walk(nodeId) {
-    edges
-      .filter((edge) => edge.from === nodeId)
-      .forEach((edge) => {
-        if (!visited.has(edge.to)) {
-          visited.add(edge.to);
-          walk(edge.to);
-        }
-      });
+  while (queue.length) {
+    const current = queue.shift();
+    for (const edge of edges) {
+      if (edge.from === current && !seen.has(edge.to)) {
+        seen.add(edge.to);
+        queue.push(edge.to);
+      }
+    }
   }
 
-  walk(node.id);
-  return [...visited]
-    .map((id) => nodes.find((item) => item.id === id))
+  return [...seen]
+    .map((id) => nodes.find((node) => node.id === id))
     .filter(Boolean);
 }
 
-export default function NodeCard({ node, nodes, edges }) {
-  if (!node) return null;
-
-  const affected = node.isDelayed
-    ? getDownstream(node, nodes, edges)
-    : edges
-        .filter((edge) => edge.from === node.id)
-        .map((edge) => nodes.find((item) => item.id === edge.to))
-        .filter(Boolean);
+export default function NodeCard({ node, nodes, edges, busy, onPoke, onComplete, onClose }) {
+  const status = STATUS[node.status] ?? STATUS.todo;
+  const downstream = downstreamOf(node.id, nodes, edges);
 
   return (
-    <aside className="node-card glass-surface" aria-live="polite">
-      <div className="node-card__head">
-        <div>
-          <p className="section-kicker">任务地点</p>
-          <h2>{node.name}</h2>
-        </div>
-        <span className="node-card__badge">
-          {node.isBottleneck ? '瓶颈节点' : node.isDelayed ? '延期节点' : '协作节点'}
-        </span>
+    <>
+      <div className="pk-popover__head">
+        <h3>{node.name}</h3>
+        <button type="button" className="pk-popover__close" aria-label="关闭详情" onClick={onClose}>
+          ×
+        </button>
       </div>
 
-      <dl className="node-card__facts">
-        <div>
-          <dt>负责人</dt>
-          <dd>{node.owner}</dd>
-        </div>
-        <div>
-          <dt>部门</dt>
-          <dd>{node.dept}</dd>
-        </div>
-        <div>
-          <dt>状态</dt>
-          <dd>{STATUS_LABEL[node.status]}</dd>
-        </div>
-        <div>
-          <dt>延期</dt>
-          <dd>{node.isDelayed ? '已延期 1 天' : '正常'}</dd>
-        </div>
+      <dl className="pk-popover__meta">
+        <dt>负责人</dt>
+        <dd>{node.owner}</dd>
+        <dt>部门</dt>
+        <dd>{node.dept}</dd>
+        <dt>状态</dt>
+        <dd>
+          <span className={`pk-tag ${status.tag}`}>{status.label}</span>
+        </dd>
+        {(node.isDelayed || node.isBottleneck) && (
+          <>
+            <dt>标记</dt>
+            <dd>
+              {node.isDelayed && <span className="pk-tag pk-tag--delay">⏰ 已延期 1 天</span>}
+              {node.isBottleneck && (
+                <span className="pk-tag pk-tag--block">
+                  瓶颈 · 阻塞 {downstreamOf(node.id, nodes, edges).length} 个下游
+                </span>
+              )}
+            </dd>
+          </>
+        )}
       </dl>
 
-      <div className="node-card__impact">
-        <p className="section-kicker">
-          {node.isDelayed ? '延期连锁影响' : '下游影响预览'}
-        </p>
-        <div className="impact-list">
-          {affected.length ? (
-            affected.map((item) => (
-              <span key={item.id} className="impact-pill">
-                {item.name} · {item.owner}
-              </span>
-            ))
-          ) : (
-            <span className="impact-pill">暂无直接下游</span>
-          )}
-        </div>
+      <div className="pk-popover__impact">
+        <h4>延期连锁影响</h4>
+        {downstream.length ? (
+          <ul>
+            {downstream.map((item) => (
+              <li key={item.id}>
+                <span>{item.name}</span>
+                <span>{item.owner}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>没有下游任务，延期不会连锁影响他人。</p>
+        )}
       </div>
-    </aside>
+
+      <div className="pk-popover__actions">
+        <button
+          type="button"
+          className="pk-btn pk-btn--primary"
+          disabled={busy}
+          onClick={() => onPoke(node.id)}
+        >
+          戳一戳催进度
+        </button>
+        {node.status !== 'done' && (
+          <button
+            type="button"
+            className="pk-btn pk-btn--ghost"
+            disabled={busy}
+            onClick={() => onComplete(node.id)}
+          >
+            标记完成
+          </button>
+        )}
+      </div>
+    </>
   );
 }

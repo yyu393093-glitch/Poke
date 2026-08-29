@@ -1,276 +1,504 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { clockOff, completeNode, fetchMetrics, pokeTask } from '../api/gameApi.js';
+import { clockOff, completeNode, pokeTask } from '../api/gameApi.js';
 import referenceDashboard from '../assets/poke-reference-dashboard.png';
+import cleanPlate from '../assets/poke-map-clean.png';
+import '../styles/dashboard.css';
 import NodeCard from './NodeCard.jsx';
 
-const STATUS_LABEL = {
-  done: '已完成',
-  doing: '进行中',
-  todo: '未开始',
+const STAGE_W = 1536;
+const STAGE_H = 1024;
+
+/** 定稿图中各元素的实测位置（1536×1024 画布坐标）。 */
+/* pill  = 任务名药丸（只用来定位选中环，不覆盖它 —— 完成时药丸文字本来就不变）
+   badge = 底图上的状态徽章，完成后用「已完成」盖住它
+   check = 完成后打勾的圆心（对齐 01/04 已有的那个勾） */
+const NODE_UI = {
+  n_req: {
+    no: '01',
+    pill: [605, 252, 125, 53],
+    badge: null,
+    check: [718, 266],
+    hit: [560, 200, 190, 112],
+    popover: [612, 318],
+  },
+  n_brand: {
+    no: '02',
+    pill: [296, 443, 137, 57],
+    badge: [317, 505, 82, 22],
+    check: [429, 447],
+    hit: [286, 396, 168, 142],
+    popover: [300, 546],
+  },
+  n_design: {
+    no: '03',
+    pill: [648, 524, 152, 56],
+    badge: null,
+    check: [796, 528],
+    hit: [638, 470, 178, 116],
+    popover: [652, 592],
+  },
+  n_copy: {
+    no: '04',
+    pill: [1052, 371, 136, 57],
+    badge: null,
+    check: [1172, 383],
+    hit: [1000, 306, 196, 126],
+    popover: [940, 440],
+  },
+  n_dev: {
+    no: '05',
+    pill: [400, 694, 128, 56],
+    badge: [415, 755, 57, 20],
+    check: [524, 698],
+    hit: [404, 640, 166, 146],
+    popover: [408, 470],
+  },
+  n_test: {
+    no: '06',
+    pill: [870, 699, 140, 57],
+    badge: [906, 762, 61, 20],
+    check: [1006, 703],
+    hit: [858, 646, 172, 146],
+    popover: [700, 430],
+  },
 };
 
-const TASK_HOTSPOTS = [
-  { id: 'n_req', label: '01 需求文档', left: 46.2, top: 27.8, width: 14.4, height: 15.8 },
-  { id: 'n_brand', label: '02 品牌素材', left: 23.6, top: 43.3, width: 15.4, height: 17.3 },
-  { id: 'n_design', label: '03 首页设计稿', left: 48.2, top: 50.4, width: 16.8, height: 18.8 },
-  { id: 'n_copy', label: '04 运营文案', left: 73.4, top: 40.6, width: 15.6, height: 16.4 },
-  { id: 'n_dev', label: '05 前端开发', left: 29.1, top: 69.2, width: 15.4, height: 16.8 },
-  { id: 'n_test', label: '06 联调测试', left: 63.5, top: 70.4, width: 15.8, height: 16.6 },
+/** 项目 Leader 一行：头像旁的「催进度」按钮 */
+const LEADERS = [
+  { id: 'n_design', name: '小陈', btn: [1103, 249, 86, 32] },
+  { id: 'n_dev', name: '老李', btn: [1204, 249, 86, 32] },
+  { id: 'n_copy', name: '阿May', btn: [1305, 249, 86, 32] },
+  { id: 'n_brand', name: '陈总', btn: [1406, 249, 86, 32] },
 ];
 
-const LEADER_HOTSPOTS = [
-  { id: 'n_design', label: '催小陈进度', left: 73.2, top: 26.3, width: 7.2, height: 3.6 },
-  { id: 'n_dev', label: '催老李进度', left: 81.2, top: 26.3, width: 7.2, height: 3.6 },
-  { id: 'n_copy', label: '催阿May进度', left: 89.1, top: 26.3, width: 7.2, height: 3.6 },
-  { id: 'n_brand', label: '催陈总进度', left: 96.1, top: 26.3, width: 7.2, height: 3.6 },
+/** 底部「关键路径」五个步骤 */
+const PATH_STEPS = [
+  { id: 'n_req', cx: 353 },
+  { id: 'n_brand', cx: 461 },
+  { id: 'n_design', cx: 571 },
+  { id: 'n_dev', cx: 685 },
+  { id: 'n_test', cx: 799 },
 ];
 
-const QUICK_ACTIONS = [
-  { type: 'poke', label: '戳一戳催进度', left: 48.2, top: 84.4, width: 5.8, height: 11.5 },
-  { type: 'complete', label: '标记完成更新状态', left: 55.5, top: 84.4, width: 6.2, height: 11.5 },
-  { type: 'impact', label: '查看影响涟漪视图', left: 63.1, top: 84.4, width: 6.2, height: 11.5 },
-  { type: 'clockOff', label: '收工关灯下班啦', left: 70.6, top: 84.4, width: 6.2, height: 11.5 },
-];
+/** 顶部指标数字的位置（只有数值变化时才覆盖） */
+const STAT_BOX = {
+  doneToday: [653, 61, 50, 27],
+};
 
-const INITIAL_LOGS = [
-  { id: 'log-1', from: '小陈', to: '陈总', time: '17:57:32', text: '陈总好，首页设计稿还差品牌素材...' },
-  { id: 'log-2', from: '老李', to: '小陈', time: '17:50:12', text: '上游已完成，你可以开始了！' },
-  { id: 'log-3', from: '小赵', to: '小陈', time: '17:50:15', text: '收到！马上跟进～' },
-];
+const MASCOT = { x: 80, y: 600 };
+
+const STATUS_LABEL = { done: '已完成', doing: '进行中', todo: '未开始' };
+
+function px([left, top, width, height]) {
+  return { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` };
+}
+
+function inflate([left, top, width, height], by) {
+  return [left - by, top - by, width + by * 2, height + by * 2];
+}
 
 function nowTime() {
   return new Intl.DateTimeFormat('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
     hour12: false,
   }).format(new Date());
 }
 
-export default function NetworkGraph({ nodes, edges }) {
+export default function NetworkGraph({ nodes, edges, visibleCount }) {
   const [selectedId, setSelectedId] = useState(null);
-  const [panelNodeId, setPanelNodeId] = useState(null);
+  const [popoverId, setPopoverId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
-  const [logs, setLogs] = useState(INITIAL_LOGS);
-  const [completedIds, setCompletedIds] = useState(new Set());
-  const [metrics, setMetrics] = useState({ doneToday: 3, alignedPeople: 5, blocked: 2 });
+  const [completedIds, setCompletedIds] = useState(() => new Set());
+  const [newLogs, setNewLogs] = useState([]);
+  // 'baked' = 沿用底图上那条（静止画面与定稿图完全一致）
+  // 'dom'   = 内容变了，改用可交互的 DOM 版
+  // 'closed'= 已关闭，用无通知条底图补位
+  const [noticeMode, setNoticeMode] = useState('baked');
+  const [noticeLeaving, setNoticeLeaving] = useState(false);
+  const [notice, setNotice] = useState({
+    title: '上游已完成，你可以开始了！',
+    from: '来自：小陈（首页设计稿已完成）',
+  });
+  const [flyer, setFlyer] = useState(null);
+  const [ripple, setRipple] = useState(null);
+  const [doneToday, setDoneToday] = useState(3);
   const [lightsOff, setLightsOff] = useState(false);
+  const [scale, setScale] = useState(1);
 
-  useEffect(() => {
-    fetchMetrics().then((nextMetrics) => {
-      setMetrics({ ...nextMetrics, blocked: 2 });
-    }).catch(() => {});
+  const toastTimer = useRef(0);
+  const flyerTimer = useRef([]);
+
+  /* ---- 等比缩放，让 1536×1024 的画布刚好填满视口 ---- */
+  useLayoutEffect(() => {
+    function fit() {
+      setScale(Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H));
+    }
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
   }, []);
 
-  const normalizedNodes = useMemo(
-    () => nodes.map((node) => (
-      completedIds.has(node.id)
-        ? { ...node, status: 'done', isDelayed: false, isBottleneck: false }
-        : node
-    )),
-    [completedIds, nodes],
-  );
+  useEffect(() => () => {
+    window.clearTimeout(toastTimer.current);
+    flyerTimer.current.forEach(window.clearTimeout);
+  }, []);
 
-  const selectedNode = normalizedNodes.find((node) => node.id === panelNodeId);
-
-  function findNode(id) {
-    return normalizedNodes.find((node) => node.id === id);
-  }
-
-  function pushLog(from, to, text) {
-    setLogs((items) => [
-      { id: `${Date.now()}-${to}`, from, to, time: nowTime(), text },
-      ...items,
-    ].slice(0, 3));
-  }
-
-  function showToast(message) {
+  const showToast = useCallback((message) => {
     setToast(message);
-    window.clearTimeout(window.__pokeToastTimer);
-    window.__pokeToastTimer = window.setTimeout(() => setToast(''), 2400);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(''), 2600);
+  }, []);
+
+  /* 完成状态叠加到后端返回的节点上 */
+  const liveNodes = nodes.map((node) => (
+    completedIds.has(node.id)
+      ? { ...node, status: 'done', isDelayed: false, isBottleneck: false }
+      : node
+  ));
+
+  const findNode = (id) => liveNodes.find((node) => node.id === id);
+  const popoverNode = popoverId ? findNode(popoverId) : null;
+
+  function pushLog(entry) {
+    setNewLogs((items) => [{ id: `${Date.now()}-${entry.to}`, ...entry }, ...items].slice(0, 1));
   }
 
-  async function pokeNode(targetId, from = '小陈') {
-    if (busy) return;
+  /* ---- 戳一戳：灯仔飞过去 + 公开记录 ---- */
+  async function handlePoke(targetId, from = '小陈') {
+    if (busy || !targetId) return;
     const target = findNode(targetId);
+    if (!target) return;
+
+    if (lightsOff) {
+      showToast(`${target.owner} 已经下班了，明天再戳吧 🌙`);
+      return;
+    }
+
+    const ui = NODE_UI[targetId];
+    const destX = ui.hit[0] + ui.hit[2] / 2;
+    const destY = ui.hit[1] + ui.hit[3] / 2;
 
     setBusy(true);
     setSelectedId(targetId);
+
+    // 先起飞，再等接口 —— 反馈不等网络（Apple: respond immediately）
+    setFlyer({ x: MASCOT.x, y: MASCOT.y });
+    flyerTimer.current.push(window.setTimeout(() => setFlyer({ x: destX, y: destY }), 30));
+    flyerTimer.current.push(window.setTimeout(() => {
+      setRipple({ x: destX, y: destY });
+      setFlyer(null);
+    }, 660));
+    flyerTimer.current.push(window.setTimeout(() => setRipple(null), 1400));
+
     try {
       const result = await pokeTask(from, targetId);
-      pushLog(from, target?.owner ?? '负责人', result.message);
-      showToast(`已公开催进度：${result.message}`);
+      pushLog({ from, to: target.owner, message: result.message, time: nowTime() });
+      showToast(`已公开戳一戳 ${target.owner}：${result.message}`);
     } catch (error) {
       console.error(error);
-      showToast('催进度失败，请确认 mock 后端已启动');
+      showToast('催进度失败，请确认本地 mock 后端已启动（端口 3001）');
     } finally {
       setBusy(false);
     }
   }
 
-  async function markSelectedDone() {
-    const targetId = selectedId ?? 'n_design';
-    const target = findNode(targetId);
-    if (busy || !target) return;
+  /* ---- 标记完成：自动通知所有下游负责人 ---- */
+  async function handleComplete(nodeId) {
+    const target = findNode(nodeId);
+    if (busy || !target || target.status === 'done') return;
 
     setBusy(true);
     try {
-      const result = await completeNode(targetId);
-      setCompletedIds((items) => new Set([...items, targetId]));
-      setMetrics((item) => ({
-        ...item,
-        doneToday: Math.max(item.doneToday, 4),
-        blocked: targetId === 'n_design' ? 0 : item.blocked,
-      }));
-      const notified = result.notifications?.map((item) => item.to).join('、') || '下游负责人';
-      pushLog(target.owner, notified, '上游已完成，你可以开始了！');
-      showToast(`${target.name} 已完成，已自动通知 ${notified}`);
+      const result = await completeNode(nodeId);
+      setCompletedIds((items) => new Set([...items, nodeId]));
+      setDoneToday((value) => value + 1);
+
+      const receivers = result.notifications?.map((item) => item.to) ?? [];
+      const names = receivers.join('、') || '下游负责人';
+
+      setNotice({
+        title: '上游已完成，你可以开始了！',
+        from: `来自：${target.owner}（${target.name}已完成）`,
+      });
+      setNoticeLeaving(false);
+      setNoticeMode('dom');
+
+      pushLog({ from: target.owner, to: names, message: '上游已完成，你可以开始了！', time: nowTime() });
+      showToast(`${target.name} 已完成，已自动通知 ${names}`);
+      setPopoverId(null);
     } catch (error) {
       console.error(error);
-      showToast('标记完成失败，请确认 mock 后端已启动');
+      showToast('标记完成失败，请确认本地 mock 后端已启动（端口 3001）');
     } finally {
       setBusy(false);
     }
   }
 
-  async function turnLightsOff() {
+  async function handleClockOff() {
     if (busy || lightsOff) return;
-
     setBusy(true);
     try {
       await clockOff();
       setLightsOff(true);
-      pushLog('系统', '全员', '下班边界已开启，明天再戳。');
-      showToast('已收工关灯：下班后戳你会提示明天再戳');
+      showToast('已收工关灯 · 现在别人戳你会提示「他已经下班了，明天再戳吧」');
     } catch (error) {
       console.error(error);
-      showToast('关灯失败，请确认 mock 后端已启动');
+      showToast('关灯失败，请确认本地 mock 后端已启动（端口 3001）');
     } finally {
       setBusy(false);
     }
   }
 
-  function handleQuickAction(type) {
-    if (type === 'poke') {
-      pokeNode(selectedId ?? 'n_brand');
+  function closeNotice() {
+    if (noticeMode === 'baked') {
+      setNoticeMode('closed');
       return;
     }
-
-    if (type === 'complete') {
-      markSelectedDone();
-      return;
-    }
-
-    if (type === 'impact') {
-      setSelectedId('n_design');
-      setPanelNodeId('n_design');
-      showToast('首页设计稿影响 2 个下游任务：前端开发、联调测试');
-      return;
-    }
-
-    turnLightsOff();
+    setNoticeLeaving(true);
+    window.setTimeout(() => {
+      setNoticeMode('closed');
+      setNoticeLeaving(false);
+    }, 220);
   }
 
+  function openNode(id) {
+    setSelectedId(id);
+    setPopoverId((current) => (current === id ? null : id));
+  }
+
+  const shown = typeof visibleCount === 'number' ? visibleCount : liveNodes.length;
+  const isRevealed = (id) => liveNodes.findIndex((node) => node.id === id) < shown;
+
   return (
-    <section className={lightsOff ? 'reference-dashboard is-clocked-off' : 'reference-dashboard'} aria-label="戳戳 Poke 协作网络图">
-      <img
-        className="reference-dashboard__image"
-        src={referenceDashboard}
-        alt="戳戳 Poke 协作地图界面"
-        draggable="false"
-      />
+    <div className="pk-screen">
+      <section
+        className="pk-stage"
+        style={{ transform: `scale(${scale})` }}
+        aria-label="戳戳 Poke 协作地图"
+      >
+        <img className="pk-stage__base" src={referenceDashboard} alt="" draggable="false" />
 
-      <div className="reference-dashboard__sr" aria-live="polite">
-        当前项目进度 42%，今日完成 {metrics.doneToday} 项，阻塞任务 {metrics.blocked} 项，对齐人数 {metrics.alignedPeople} 人。
-      </div>
+        <p className="pk-sr" aria-live="polite">
+          协作地图已生成，共 {liveNodes.length} 个任务节点。今日完成 {doneToday} 项。
+          {popoverNode ? `当前查看：${popoverNode.name}，负责人 ${popoverNode.owner}。` : ''}
+        </p>
 
-      {TASK_HOTSPOTS.map((spot) => {
-        const node = findNode(spot.id);
-        return (
+        {/* ---------- 通知条 ----------
+            静止时直接沿用底图上那条，只在它上面放一个透明的关闭热区；
+            内容变化后才切换成 DOM 版；关闭后用无通知条底图补位。 */}
+        {noticeMode === 'baked' && (
           <button
-            key={spot.id}
             type="button"
-            className={selectedId === spot.id ? 'reference-hotspot is-active' : 'reference-hotspot'}
-            style={{ left: `${spot.left}%`, top: `${spot.top}%`, width: `${spot.width}%`, height: `${spot.height}%` }}
-            aria-label={`${spot.label}，${node?.owner ?? ''}，状态 ${STATUS_LABEL[node?.status] ?? ''}，点击查看详情`}
-            onMouseEnter={() => setSelectedId(spot.id)}
-            onFocus={() => setSelectedId(spot.id)}
-            onClick={() => {
-              setSelectedId(spot.id);
-              setPanelNodeId(spot.id);
-            }}
+            className="pk-hit pk-hit--round"
+            style={px([831, 140, 32, 32])}
+            aria-label="关闭通知：上游已完成，你可以开始了"
+            onClick={closeNotice}
           />
-        );
-      })}
+        )}
 
-      {LEADER_HOTSPOTS.map((spot) => (
-        <button
-          key={spot.label}
-          type="button"
-          className="reference-hotspot reference-hotspot--leader"
-          style={{ left: `${spot.left}%`, top: `${spot.top}%`, width: `${spot.width}%`, height: `${spot.height}%` }}
-          aria-label={spot.label}
-          disabled={busy}
-          onClick={() => pokeNode(spot.id)}
-        />
-      ))}
+        {noticeMode === 'dom' && (
+          <div className={noticeLeaving ? 'pk-notice is-leaving' : 'pk-notice'} role="status">
+            <span className="pk-notice__bell" aria-hidden="true">🔔</span>
+            <span className="pk-notice__text">
+              <strong>{notice.title}</strong>
+              <span>{notice.from}</span>
+            </span>
+            <button type="button" className="pk-notice__close" aria-label="关闭通知" onClick={closeNotice}>
+              ×
+            </button>
+          </div>
+        )}
 
-      {QUICK_ACTIONS.map((action) => (
-        <button
-          key={action.type}
-          type="button"
-          className="reference-hotspot reference-hotspot--quick"
-          style={{ left: `${action.left}%`, top: `${action.top}%`, width: `${action.width}%`, height: `${action.height}%` }}
-          aria-label={action.label}
-          disabled={busy}
-          onClick={() => handleQuickAction(action.type)}
-        />
-      ))}
+        {noticeMode === 'closed' && (
+          <div className="pk-notice-patch" style={{ backgroundImage: `url(${cleanPlate})` }} />
+        )}
 
-      <button
-        type="button"
-        className="reference-hotspot reference-hotspot--helper"
-        aria-label="打开首页设计稿详情"
-        onClick={() => {
-          setSelectedId('n_design');
-          setPanelNodeId('n_design');
-        }}
-      />
+        {/* ---------- 任务节点：热区 + 状态变化后的覆盖片 ---------- */}
+        {Object.entries(NODE_UI).map(([id, ui]) => {
+          const node = findNode(id);
+          if (!node) return null;
 
-      {toast && (
-        <div className="reference-toast glass-surface" role="status">
-          {toast}
-        </div>
-      )}
+          const revealed = isRevealed(id);
+          const changed = completedIds.has(id);
 
-      <section className="reference-live-log" aria-label="最新公开戳一戳记录">
-        {logs.map((log) => (
-          <article key={log.id}>
-            <strong>{log.from} → {log.to}</strong>
-            <span>{log.text}</span>
-            <time>{log.time}</time>
-          </article>
-        ))}
-      </section>
+          return (
+            <div key={id}>
+              <button
+                type="button"
+                className={`pk-hit pk-hit--node${selectedId === id ? ' is-selected' : ''}`}
+                style={{ ...px(ui.hit), opacity: revealed ? 1 : 0, pointerEvents: revealed ? 'auto' : 'none' }}
+                aria-label={`${ui.no} ${node.name}，负责人 ${node.owner}，${node.dept}，状态 ${STATUS_LABEL[node.status]}${node.isDelayed ? '，已延期 1 天' : ''}${node.isBottleneck ? '，瓶颈卡点' : ''}。点击查看详情`}
+                onClick={() => openNode(id)}
+              />
 
-      {selectedNode && (
-        <div className="reference-node-popover">
-          <button type="button" aria-label="关闭任务详情" onClick={() => setPanelNodeId(null)}>
-            ×
-          </button>
-          <NodeCard node={selectedNode} nodes={normalizedNodes} edges={edges} />
+              {/* 状态环：只在选中该节点时出现，贴着药丸描边
+                  —— 保证静止画面与定稿图逐像素一致（md 03 §2 瓶颈 / §4 延期） */}
+              {revealed && selectedId === id && (
+                <div
+                  className={`pk-ring ${
+                    node.isBottleneck ? 'pk-bottleneck' : node.isDelayed ? 'pk-delayed' : 'pk-ring--plain'
+                  }`}
+                  style={px(inflate(ui.pill, 5))}
+                  aria-hidden="true"
+                />
+              )}
+
+              {/* 只有状态真的变了才动底图：打勾 + 盖掉旧状态徽章 */}
+              {changed && (
+                <span
+                  className="pk-check"
+                  style={{ left: `${ui.check[0] - 13}px`, top: `${ui.check[1] - 13}px` }}
+                  aria-hidden="true"
+                >
+                  ✓
+                </span>
+              )}
+
+              {changed && ui.badge && (
+                <div className="pk-badge pk-badge--done" style={px(inflate(ui.badge, 2))}>
+                  已完成
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* ---------- Leader 行的「催进度」按钮 ---------- */}
+        {LEADERS.map((leader) => (
           <button
+            key={leader.id}
             type="button"
-            className="reference-popover-action"
+            className="pk-hit"
+            style={px(leader.btn)}
+            aria-label={`催 ${leader.name} 的进度`}
             disabled={busy}
-            onClick={() => pokeNode(selectedNode.id)}
+            onClick={() => handlePoke(leader.id)}
+          />
+        ))}
+
+        {/* ---------- 底部关键路径的五个步骤 ---------- */}
+        {PATH_STEPS.map((step) => {
+          const node = findNode(step.id);
+          return (
+            <button
+              key={step.id}
+              type="button"
+              className="pk-hit pk-hit--round"
+              style={px([step.cx - 30, 847, 60, 60])}
+              aria-label={`关键路径：${node?.name ?? step.id}，点击查看详情`}
+              onClick={() => openNode(step.id)}
+            />
+          );
+        })}
+
+        {/* ---------- 影响涟漪面板的「查看详情」 ---------- */}
+        <button
+          type="button"
+          className="pk-hit"
+          style={px([1370, 812, 114, 29])}
+          aria-label="查看首页设计稿的影响涟漪详情"
+          onClick={() => openNode('n_design')}
+        />
+
+        {/* ---------- 缩略地图旁的三个控制键 ---------- */}
+        <button
+          type="button"
+          className="pk-hit"
+          style={px([248, 762, 42, 38])}
+          aria-label="放大地图"
+          onClick={() => showToast('演示模式固定视图，暂不支持缩放')}
+        />
+        <button
+          type="button"
+          className="pk-hit"
+          style={px([248, 802, 42, 38])}
+          aria-label="缩小地图"
+          onClick={() => showToast('演示模式固定视图，暂不支持缩放')}
+        />
+        <button
+          type="button"
+          className="pk-hit"
+          style={px([248, 848, 42, 38])}
+          aria-label="收工关灯，开启下班边界"
+          disabled={busy}
+          onClick={handleClockOff}
+        />
+
+        {/* ---------- 吉祥物气泡：点一下打开瓶颈节点 ---------- */}
+        <button
+          type="button"
+          className="pk-hit"
+          style={px([155, 562, 132, 80])}
+          aria-label="查看瓶颈节点 首页设计稿"
+          onClick={() => openNode('n_design')}
+        />
+
+        {/* ---------- 新的公开戳一戳记录（顶到记录面板第一行） ---------- */}
+        {newLogs[0] && (
+          <div className="pk-newlog" key={newLogs[0].id}>
+            <span className="pk-newlog__pin">刚刚</span>
+            <span className="pk-newlog__who">{newLogs[0].from} → {newLogs[0].to}</span>
+            <span className="pk-newlog__msg">{newLogs[0].message}</span>
+            <span className="pk-newlog__time">{newLogs[0].time}</span>
+          </div>
+        )}
+
+        {/* ---------- 灯仔飞行 + 落点涟漪 ---------- */}
+        {flyer && (
+          <div
+            className="pk-flyer"
+            style={{ transform: `translate(${flyer.x - 23}px, ${flyer.y - 23}px)` }}
+            aria-hidden="true"
           >
-            戳一戳催进度
-          </button>
-        </div>
-      )}
-    </section>
+            👉
+          </div>
+        )}
+
+        {ripple && (
+          <div
+            className="pk-ripple"
+            style={px([ripple.x - 55, ripple.y - 55, 110, 110])}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* ---------- 节点详情 ---------- */}
+        {popoverNode && (
+          <div
+            className="pk-popover"
+            style={{
+              left: `${NODE_UI[popoverNode.id].popover[0]}px`,
+              top: `${NODE_UI[popoverNode.id].popover[1]}px`,
+            }}
+            role="dialog"
+            aria-label={`${popoverNode.name} 详情`}
+          >
+            <NodeCard
+              node={popoverNode}
+              nodes={liveNodes}
+              edges={edges}
+              busy={busy}
+              onPoke={handlePoke}
+              onComplete={handleComplete}
+              onClose={() => setPopoverId(null)}
+            />
+          </div>
+        )}
+
+        {/* ---------- 顶部指标：数值变了才覆盖 ---------- */}
+        {doneToday !== 3 && (
+          <div className="pk-cover pk-cover--stat" style={px(STAT_BOX.doneToday)}>
+            {doneToday}<small>项</small>
+          </div>
+        )}
+
+        {lightsOff && <div className="pk-lightsoff" aria-hidden="true" />}
+
+        {toast && <div className="pk-toast" role="status">{toast}</div>}
+      </section>
+    </div>
   );
 }
