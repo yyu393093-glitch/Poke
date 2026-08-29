@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { desktopBridge } from '../../platform/desktopBridge.js';
 import { DEFAULT_PET_PROGRESS, normalizePetProgress } from '../../components/petModel.js';
-import { getDropState, isSupportedDrop } from './fileDropModel.js';
+import { getDropState, getNextDropState, isSupportedDrop } from './fileDropModel.js';
 
 const PHASE_META = {
   normal: { icon: '✓', label: '按计划推进', tone: 'border-emerald-400/60 bg-emerald-950/90' },
@@ -19,23 +19,24 @@ export default function PetWindow() {
   const [paused, setPaused] = useState(false);
   const [dropState, setDropState] = useState('idle');
   const [droppedFile, setDroppedFile] = useState('');
+  const [dragActive, setDragActive] = useState(false);
   const collapseTimer = useRef(null);
   const consumeTimer = useRef(null);
   const meta = PHASE_META[progress.phase] || PHASE_META.error;
   const dropMeta = getDropState(dropState);
-  const mascotAsset = dropState === 'eating' ? '/assets/pet/capybara-eating.png' : dropState === 'consumed' ? '/assets/pet/capybara-success.png' : '/assets/pet/capybara-idle.png';
+  const mascotAsset = dropState === 'eating' ? '/assets/pet/capybara-eating.png' : dropState === 'consumed' ? '/assets/pet/capybara-success.png' : dragActive ? '/assets/pet/capybara-shake.png' : '/assets/pet/capybara-idle.png';
 
   useEffect(() => {
     const offProgress = desktopBridge.onPetProgress((value) => setProgress(normalizePetProgress(value)));
     const offPaused = desktopBridge.onPetPaused?.(setPaused);
     const offError = desktopBridge.onPetLoadError?.(() => setProgress((value) => ({ ...value, phase: 'error', headline: '主页面加载失败，点击重试' })));
-    return () => { offProgress?.(); offPaused?.(); offError?.(); window.clearTimeout(consumeTimer.current); };
+    return () => { offProgress?.(); offPaused?.(); offError?.(); window.clearTimeout(consumeTimer.current); window.clearTimeout(collapseTimer.current); };
   }, []);
 
   function enter() {
     window.clearTimeout(collapseTimer.current);
     if (!expanded && dropState === 'idle') {
-      window.setTimeout(() => { setExpanded(true); desktopBridge.petSetExpanded(true); }, 250);
+      collapseTimer.current = window.setTimeout(() => { setExpanded(true); desktopBridge.petSetExpanded(true); }, 250);
     }
   }
   function leave() {
@@ -45,25 +46,28 @@ export default function PetWindow() {
   function openMain() { if (desktopBridge.isDesktop()) desktopBridge.openMain(); else navigate('/network'); }
   function handleDrop(event) {
     event.preventDefault();
+    setDragActive(false);
     const file = event.dataTransfer.files?.[0];
-    if (!isSupportedDrop(file)) return;
+    if (!isSupportedDrop(file) || dropState !== 'idle') return;
     window.clearTimeout(consumeTimer.current);
     setDroppedFile(file.name);
-    setDropState('eating');
+    setExpanded(false);
+    desktopBridge.petSetExpanded(false);
+    setDropState(getNextDropState('idle'));
     consumeTimer.current = window.setTimeout(() => {
-      setDropState('consumed');
-      window.setTimeout(openMain, 500);
-    }, 1100);
+      setDropState(getNextDropState('eating'));
+      window.setTimeout(openMain, 700);
+    }, 1350);
   }
 
   return (
-    <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
+    <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} ${dragActive ? 'pet-drag-active' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragActive(false); }} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
       <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
         <span className="capybara-mascot" aria-hidden="true"><img key={mascotAsset} src={mascotAsset} alt="" /></span>
         {!expanded && <span className="pet-status" aria-label={meta.label}>{dropState === 'idle' ? meta.icon : '↓'}</span>}
       </button>
       {dropState !== 'idle' ? (
-        <section className="pet-drop-card" role="status"><strong>{dropMeta.label}</strong><small>{droppedFile}</small></section>
+        <section className="pet-drop-card" role="status"><span className="pet-file-token" aria-hidden="true">📄</span><strong>{dropMeta.label}</strong><small>{droppedFile}</small></section>
       ) : expanded ? (
         <section className={`pet-card ${meta.tone}`}>
           <div className="pet-card-head"><b>{progress.projectName}</b><span>{meta.icon} {meta.label}</span></div>
