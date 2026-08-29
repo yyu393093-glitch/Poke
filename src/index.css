@@ -125,3 +125,8 @@ button {
 .pet-panel-actions { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid #1e293b; }
 .pet-panel-actions button { flex: 1; padding: 8px 0; border-radius: 8px; border: 1px solid #3b82f6; background: #1d4ed8; color: #fff; font-size: 12px; cursor: pointer; }
 .pet-panel-actions button:first-child { background: #1e293b; border-color: #334155; }
+
+/* PetWindow hover/expand container */
+.pet-shell { position: relative; width: 72px; height: 72px; color: white; overflow: visible; }
+.pet-shell-expanded { width: 380px; height: 500px; }
+.flow-peek { right: 0; bottom: 0; }
