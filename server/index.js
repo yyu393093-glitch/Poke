@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sendFeishuPost } from './notify.js';
 
 const PORT = 3001;
 const app = express();
@@ -78,10 +79,23 @@ app.post('/api/poke', (request, response) => {
 app.post('/api/node/complete', (request, response) => {
   const data = readMockData();
   const nodeId = request.body?.nodeId;
+  const completed = data.tasks.find((task) => task.id === nodeId);
   const downstream = data.edges
     .filter((edge) => edge.from === nodeId)
     .map((edge) => data.tasks.find((task) => task.id === edge.to))
     .filter(Boolean);
+
+  // 真实飞书群通知（富文本 post），异步发送，不阻塞响应
+  if (completed && downstream.length) {
+    void sendFeishuPost({
+      title: '✅ 任务完成 · 下游可以开工了',
+      lines: [
+        `「${completed.name}」已完成（${completed.owner}）`,
+        '下游任务可以开始了：',
+        ...downstream.map((task) => `→ ${task.name}（${task.owner}）`),
+      ],
+    });
+  }
 
   delayResponse(response, {
     nodeId,
