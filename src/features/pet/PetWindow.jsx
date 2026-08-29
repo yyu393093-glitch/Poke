@@ -33,7 +33,9 @@ export default function PetWindow() {
 
   function enter() {
     window.clearTimeout(collapseTimer.current);
-    if (!expanded && dropState === 'idle') { window.setTimeout(() => { setExpanded(true); desktopBridge.petSetExpanded(true); }, 250); }
+    if (!expanded && dropState === 'idle') {
+      window.setTimeout(() => { setExpanded(true); desktopBridge.petSetExpanded(true); }, 250);
+    }
   }
   function leave() {
     window.clearTimeout(collapseTimer.current);
@@ -53,17 +55,23 @@ export default function PetWindow() {
     }, 1100);
   }
 
-  return <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
-    <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
-      <span className="capybara-mascot" aria-hidden="true"><span className="capybara-flower">✿</span><span className="capybara-ear capybara-ear-left" /><span className="capybara-ear capybara-ear-right" /><span className="capybara-body" /><span className="capybara-glasses"><i /><i /></span><span className="capybara-ring" /></span>
-      {!expanded && <span className="pet-status" aria-label={meta.label}>{dropState === 'idle' ? meta.icon : '↓'}</span>}
-    </button>
-    {dropState !== 'idle' ? <section className="pet-drop-card" role="status"><strong>{dropMeta.label}</strong><small>{droppedFile}</small></section> : expanded && <section className={`pet-card ${meta.tone}`}>
-      <div className="pet-card-head"><b>{progress.projectName}</b><span>{meta.icon} {meta.label}</span></div>
-      <div className="pet-card-metric">完成 <strong>{progress.done}/{progress.total}</strong></div>
-      <div className="pet-card-sub">{progress.bottlenecks} 个瓶颈 · 影响 {progress.blockedDownstream} 个下游</div>
-      <p>{progress.headline}</p>
-      <button type="button" className="pet-card-link" onClick={openMain}>点击查看协作网络 →</button>
-    </section>}
-  </main>;
+  return (
+    <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
+      <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
+        <span className="capybara-mascot" aria-hidden="true"><img src="/assets/pet/capybara-idle.png" alt="" /></span>
+        {!expanded && <span className="pet-status" aria-label={meta.label}>{dropState === 'idle' ? meta.icon : '↓'}</span>}
+      </button>
+      {dropState !== 'idle' ? (
+        <section className="pet-drop-card" role="status"><strong>{dropMeta.label}</strong><small>{droppedFile}</small></section>
+      ) : expanded ? (
+        <section className={`pet-card ${meta.tone}`}>
+          <div className="pet-card-head"><b>{progress.projectName}</b><span>{meta.icon} {meta.label}</span></div>
+          <div className="pet-card-metric">完成 <strong>{progress.done}/{progress.total}</strong></div>
+          <div className="pet-card-sub">{progress.bottlenecks} 个瓶颈 · 影响 {progress.blockedDownstream} 个下游</div>
+          <p>{progress.headline}</p>
+          <button type="button" className="pet-card-link" onClick={openMain}>点击查看协作网络 →</button>
+        </section>
+      ) : null}
+    </main>
+  );
 }
