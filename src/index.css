@@ -94,3 +94,5 @@ button {
 .pet-window-host .pet-popup-right .pet-card, .pet-window-host .pet-popup-right .pet-drop-card { left: auto; right: 104px; }
 .pet-window-host .pet-core { -webkit-app-region: drag; }
 .pet-window-host .pet-core button, .pet-window-host .pet-card, .pet-window-host .pet-drop-card { -webkit-app-region: no-drag; }
+
+.pet-window-host .pet-popup-right .pet-core { left: 0; right: auto; }
