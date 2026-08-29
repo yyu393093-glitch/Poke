@@ -22,6 +22,18 @@ body,
   margin: 0;
 }
 
+/* Electron 的桌宠原生窗口仅 72px；不能继承普通网页的最小宽度，
+   否则浏览器会产生横向滚动条并裁切卡皮巴拉。 */
+html.pet-window,
+html.pet-window body,
+html.pet-window #root {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 button {
   font: inherit;
 }
@@ -3168,7 +3180,8 @@ a:focus-visible {
 .pet-panel { position: absolute; inset: 0; display: flex; flex-direction: column; border-radius: 14px; background: #0f172a; color: #f8fafc; overflow: hidden; }
 .pet-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #1e293b; }
 .pet-panel-title { display: flex; align-items: center; gap: 8px; } .pet-panel-title b { display: block; font-size: 13px; } .pet-panel-title small { color: #94a3b8; font-size: 11px; }
-.pet-panel-avatar { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 999px; background: #f59e0b; color: #0f172a; font-size: 10px; }
+.capybara-avatar { display: block; position: relative; flex: none; overflow: visible; }
+.pet-panel-avatar { display: block; width: 30px; height: 30px; flex: none; }
 .pet-panel-close { border: 0; background: transparent; color: #94a3b8; font-size: 20px; cursor: pointer; }
 .pet-panel-tabs { display: flex; gap: 4px; padding: 6px 12px 0; border-bottom: 1px solid #1e293b; }
 .pet-panel-tabs button { padding: 6px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import CapybaraAvatar from '../../components/CapybaraAvatar.jsx';
 import FlowPeek from './FlowPeek.jsx';
 import PetMessages from './PetMessages.jsx';
 
@@ -8,7 +9,7 @@ export default function PetPanel({ progress, peek, pokes, onClose, onOpenNetwork
     <section className="pet-panel" role="dialog" aria-label="宠物面板">
       <header className="pet-panel-head">
         <div className="pet-panel-title">
-          <span className="pet-panel-avatar" aria-hidden="true">卡皮巴拉</span>
+          <span className="pet-panel-avatar"><CapybaraAvatar size={30} /></span>
           <div><b>{progress.projectName}</b><small>{progress.headline}</small></div>
         </div>
         <button type="button" className="pet-panel-close" onClick={onClose} aria-label="关闭">×</button>

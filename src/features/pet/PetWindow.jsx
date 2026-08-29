@@ -19,6 +19,11 @@ export default function PetWindow() {
   const leaveTimer = useRef(null);
 
   useEffect(() => {
+    document.documentElement.classList.add('pet-window');
+    return () => document.documentElement.classList.remove('pet-window');
+  }, []);
+
+  useEffect(() => {
     const offSnap = desktopBridge.onPetSnapshot((value) => {
       if (!value) return;
       setSnapshot(value);

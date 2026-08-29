@@ -27,7 +27,13 @@
 
 /* ---------- 舞台：固定 1536×1024，等比缩放填满视口 ---------- */
 .pk-stage {
-  position: relative;
+  /* 舞台先以原始 1536×1024 尺寸居中，再由 React 等比缩放。这样
+     cover 缩放时裁切的是视口外区域，而不是在容器内产生黑边。 */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin-left: -768px;
+  margin-top: -512px;
   width: 1536px;
   height: 1024px;
   flex: none;

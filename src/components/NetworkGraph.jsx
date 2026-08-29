@@ -131,7 +131,10 @@ export default function NetworkGraph({ nodes, edges, visibleCount }) {
 
   useLayoutEffect(() => {
     function refit() {
-      const next = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+      // 等比覆盖视口：保持 1536:1024 的设计坐标系，并让底图与所有
+      // 同层热区/UI 一起填满屏幕。超出视口的部分由 .pk-screen 裁切，
+      // 避免因完整显示而留下黑边。
+      const next = Math.max(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
       fitRef.current = next;
       setFit(next);
     }
