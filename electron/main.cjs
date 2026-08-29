@@ -4,6 +4,8 @@ const { createMainWindow } = require('./windows/mainWindow.cjs');
 const { createFloatWindow } = require('./windows/floatWindow.cjs');
 const { createPetWindow } = require('./windows/petWindow.cjs');
 const { registerHandlers } = require('./ipc/handlers.cjs');
+const { DEFAULT_CONFIG } = require('./services/configStore.cjs');
+const { createPetPositionStore } = require('./services/petPositionStore.cjs');
 const { DEFAULT_PET_PROGRESS, normalizePetProgress, createPetProgressStore } = require('./services/petProgressStore.cjs');
 
 let mainWindow;
@@ -77,7 +79,7 @@ function createTray() {
 
 if (gotLock) {
   app.whenReady().then(() => {
-        petStore = createPetProgressStore(path.join(app.getPath('userData'), 'pet-progress.json'));
+    petStore = createPetProgressStore(path.join(app.getPath('userData'), 'pet-progress.json'));
     petProgress = petStore.get();
     mainWindow = createMainWindow({ show: false });
     mainWindow.on('close', (event) => { if (!quitting) { event.preventDefault(); mainWindow.hide(); } });
@@ -93,10 +95,6 @@ if (gotLock) {
   });
 }
 
-function getPetPosition() {
-  const area = screen.getPrimaryDisplay().workArea;
-  return { x: area.x + area.width - 88, y: area.y + area.height - 88 };
-}
 app.on('second-instance', focusMain);
 app.on('before-quit', (event) => {
   if (!quitting) { event.preventDefault(); mainWindow?.hide(); floatWindow?.hide(); }
