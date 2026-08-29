@@ -11,8 +11,8 @@ test('演示模式启用假 IM 和灯仔，生产模式全部关闭', () => {
 
 test('接口响应会被标准化为可记录的 Poke 事件', () => {
   assert.ok(model, 'pokeModel 尚未实现');
-  assert.deepEqual(model.buildPokeEvent({ message: '请确认进度', channel: 'feishu', pokeId: 'poke-1', pushStatus: 'success' }, { from: '小陈', to: 'n_brand', receiver: '陈总', time: '17:57:32' }), {
-    id: 'poke-1', from: '小陈', to: 'n_brand', receiver: '陈总', message: '请确认进度', channel: 'feishu', time: '17:57:32', pushStatus: 'success',
+  assert.deepEqual(model.buildPokeEvent({ message: '请确认进度', channel: 'feishu', pokeId: 'poke-1', pushStatus: 'success', reply: null }, { from: '小陈', to: 'n_brand', receiver: '陈总', time: '17:57:32' }), {
+    id: 'poke-1', from: '小陈', to: 'n_brand', receiver: '陈总', message: '请确认进度', reply: null, channel: 'feishu', time: '17:57:32', pushStatus: 'success',
   });
 });
 
@@ -25,6 +25,7 @@ test('只有演示模式可在接口不可用时生成本地催办结果', () =>
   assert.ok(model, 'pokeModel 尚未实现');
   assert.deepEqual(model.getPokeFallback(true, { owner: '陈总', name: '品牌素材' }, '小陈', 'poke-demo'), {
     message: '陈总好，小陈负责的工作正在等待「品牌素材」，方便确认一下进度吗？🙏',
+    reply: '收到，10分钟内发你🙌',
     channel: 'feishu',
     pokeId: 'poke-demo',
     pushStatus: 'success',

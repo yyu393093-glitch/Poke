@@ -1,50 +1,91 @@
 import { useEffect, useRef, useState } from 'react';
 import { desktopBridge } from '../../platform/desktopBridge.js';
-import { DEFAULT_PET_PROGRESS, normalizePetProgress } from '../../components/petModel.js';
+import { DEFAULT_PET_PROGRESS, normalizePetProgress, derivePetMood, deriveFlowPeek, computePetFlip } from '../../components/petModel.js';
+import PetAvatar from './PetAvatar.jsx';
+import FlowPeek from './FlowPeek.jsx';
+import PetPanel from './PetPanel.jsx';
 
-const PHASE_META = {
-  normal: { icon: '✓', label: '按计划推进', tone: 'border-emerald-400/60 bg-emerald-950/90' },
-  blocked: { icon: '!', label: '存在关键瓶颈', tone: 'border-rose-400/70 bg-rose-950/90' },
-  waiting: { icon: '…', label: '等待更新', tone: 'border-amber-400/70 bg-amber-950/90' },
-  off: { icon: '☾', label: '今日已收口', tone: 'border-slate-500/70 bg-slate-900/95' },
-  error: { icon: '×', label: '数据异常', tone: 'border-slate-500/70 bg-slate-800/95' },
-};
+const HOVER_DELAY = 600;
+const LEAVE_DELAY = 250;
 
 export default function PetWindow() {
   const [progress, setProgress] = useState(DEFAULT_PET_PROGRESS);
-  const [expanded, setExpanded] = useState(false);
+  const [snapshot, setSnapshot] = useState({ nodes: [], edges: [], pokes: [], notifications: [], currentUser: '' });
   const [paused, setPaused] = useState(false);
-  const collapseTimer = useRef(null);
-  const meta = PHASE_META[progress.phase] || PHASE_META.error;
+  const [expanded, setExpanded] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const hoverTimer = useRef(null);
+  const leaveTimer = useRef(null);
 
   useEffect(() => {
+    const offSnap = desktopBridge.onPetSnapshot((value) => {
+      if (!value) return;
+      setSnapshot(value);
+      setProgress(normalizePetProgress(value.progress));
+      setUnread((value.notifications || []).filter((n) => n.type === 'poke').length);
+    });
     const offProgress = desktopBridge.onPetProgress((value) => setProgress(normalizePetProgress(value)));
     const offPaused = desktopBridge.onPetPaused?.(setPaused);
-    const offError = desktopBridge.onPetLoadError?.(() => setProgress((value) => ({ ...value, phase: 'error', headline: '主页面加载失败，点击重试' })));
-    return () => { offProgress?.(); offPaused?.(); offError?.(); };
+    const offError = desktopBridge.onPetLoadError?.(() => setProgress((p) => ({ ...p, phase: 'error', headline: '主页面加载失败，点击重试' })));
+    const onBlur = () => collapse();
+    const onKey = (e) => { if (e.key === 'Escape') collapse(); };
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('keydown', onKey);
+    return () => { offSnap(); offProgress(); offPaused?.(); offError?.(); window.removeEventListener('blur', onBlur); window.removeEventListener('keydown', onKey); window.clearTimeout(hoverTimer.current); window.clearTimeout(leaveTimer.current); };
   }, []);
 
-  function enter() {
-    window.clearTimeout(collapseTimer.current);
-    if (!expanded) { window.setTimeout(() => { setExpanded(true); desktopBridge.petSetExpanded(true); }, 250); }
+  function collapse() {
+    window.clearTimeout(hoverTimer.current);
+    window.clearTimeout(leaveTimer.current);
+    setHovered(false);
+    setExpanded(false);
+    desktopBridge.petSetMode({ mode: 'collapsed' });
   }
-  function leave() {
-    window.clearTimeout(collapseTimer.current);
-    collapseTimer.current = window.setTimeout(() => { setExpanded(false); desktopBridge.petSetExpanded(false); }, 300);
+
+  function onEnter() {
+    window.clearTimeout(leaveTimer.current);
+    window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => {
+      setHovered(true);
+      requestMode('peek');
+    }, HOVER_DELAY);
+  }
+  function onLeave() {
+    window.clearTimeout(hoverTimer.current);
+    leaveTimer.current = window.setTimeout(() => {
+      setHovered(false);
+      if (!expanded) desktopBridge.petSetMode({ mode: 'collapsed' });
+    }, LEAVE_DELAY);
+  }
+  function cancelLeave() {
+    window.clearTimeout(leaveTimer.current);
+  }
+  function requestMode(mode) {
+    const { screenX, screenY, innerWidth, innerHeight } = window;
+    const avail = window.screen || {};
+    const flip = computePetFlip({ anchorX: screenX, anchorY: screenY, contentWidth: mode === 'panel' ? 380 : 380, contentHeight: mode === 'panel' ? 500 : 260, availWidth: avail.availWidth || screenX + 1000, availHeight: avail.availHeight || screenY + 1000 });
+    desktopBridge.petSetMode({ mode, flipX: flip.flipX, flipY: flip.flipY });
+  }
+
+  function openPanel() {
+    window.clearTimeout(hoverTimer.current);
+    window.clearTimeout(leaveTimer.current);
+    setExpanded(true);
+    requestMode('panel');
   }
   function openMain() { desktopBridge.openMain(); }
 
-  return <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''}`} onMouseEnter={enter} onMouseLeave={leave} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
-    <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
-      <span className="pet-orb">💡</span>
-      {!expanded && <span className="pet-status" aria-label={meta.label}>{meta.icon}</span>}
-    </button>
-    {expanded && <section className={`pet-card ${meta.tone}`}>
-      <div className="pet-card-head"><b>{progress.projectName}</b><span>{meta.icon} {meta.label}</span></div>
-      <div className="pet-card-metric">完成 <strong>{progress.done}/{progress.total}</strong></div>
-      <div className="pet-card-sub">{progress.bottlenecks} 个瓶颈 · 影响 {progress.blockedDownstream} 个下游</div>
-      <p>{progress.headline}</p>
-      <button type="button" className="pet-card-link" onClick={openMain}>点击查看协作网络 →</button>
-    </section>}
-  </main>;
+  const flowPeek = deriveFlowPeek(snapshot.nodes, snapshot.edges, { currentUserId: 'n_design' });
+  const mood = derivePetMood({ progress, paused, unread, hovering: hovered && !expanded, expanded });
+
+  return (
+    <main className={`pet-shell ${hovered && !expanded ? 'pet-shell-peek' : ''} ${expanded ? 'pet-shell-expanded' : ''}`} onMouseEnter={onEnter} onMouseLeave={onLeave} onContextMenu={(e) => { e.preventDefault(); desktopBridge.petOpenMenu(); }}>
+      <PetAvatar mood={mood} progress={progress} unread={unread} paused={paused} onClick={openPanel} />
+      {hovered && !expanded && <FlowPeek peek={flowPeek} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} onMouseEnter={cancelLeave} onMouseLeave={onLeave} />}
+      {expanded && <PetPanel progress={progress} peek={flowPeek} pokes={snapshot.pokes} onClose={collapse} onOpenNetwork={openMain} onPokeUpstream={pokeUpstream} />}
+    </main>
+  );
 }
+
+function pokeUpstream() { desktopBridge.openMain(); }

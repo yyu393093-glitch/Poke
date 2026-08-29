@@ -3,6 +3,11 @@ const path = require('node:path');
 
 const COLLAPSED = { width: 72, height: 72 };
 const EXPANDED = { width: 280, height: 140 };
+const SIZES = {
+  collapsed: { width: 72, height: 72 },
+  peek: { width: 380, height: 360 },
+  panel: { width: 380, height: 500 },
+};
 
 function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedChange }) {
   const win = new BrowserWindow({
@@ -16,7 +21,7 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
     resizable: false,
     skipTaskbar: true,
     show: false,
-    focusable: false,
+    focusable: true,
     hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.cjs'),
@@ -38,6 +43,15 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
     onExpandedChange?.(expanded);
   }
 
+  function setMode(mode, { flipX = false, flipY = false } = {}) {
+    const size = SIZES[mode] || SIZES.collapsed;
+    const bounds = win.getBounds();
+    const x = flipX ? bounds.x + bounds.width - size.width : bounds.x;
+    const y = flipY ? bounds.y + bounds.height - size.height : bounds.y;
+    win.setBounds({ x, y, width: size.width, height: size.height }, true);
+    return { mode, flipX, flipY };
+  }
+
   win.on('move', () => {
     const bounds = win.getBounds();
     config.position = { x: bounds.x, y: bounds.y };
@@ -50,7 +64,7 @@ function createPetWindow({ config, onClick, onContextMenu, onMove, onExpandedCha
     if (channel === 'pet:collapse') setExpanded(false);
   });
 
-  return { win, setExpanded, sizes: { COLLAPSED, EXPANDED } };
+  return { win, setExpanded, setMode, sizes: { COLLAPSED, EXPANDED } };
 }
 
-module.exports = { COLLAPSED, EXPANDED, createPetWindow };
+module.exports = { COLLAPSED, EXPANDED, SIZES, createPetWindow };

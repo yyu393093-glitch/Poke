@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 
 import { approveNetwork, fetchFeishuData, feishuAuth, parseTasks } from '../api/gameApi.js';
 import NetworkGraph from '../components/NetworkGraph.jsx';
+import { buildPetSnapshot, derivePetProgress } from '../components/petModel.js';
 import { PHASES, useGame } from '../context/GameContext.jsx';
+import { desktopBridge } from '../platform/desktopBridge.js';
 import '../styles/dashboard.css';
 
 export default function NetworkPage() {
@@ -59,6 +61,20 @@ export default function NetworkPage() {
       window.clearTimeout(noticeId);
     };
   }, [dispatch]);
+
+  // 广播宠物快照到 /pet 窗口（桌面端桌宠 FlowPeek 数据源）
+  useEffect(() => {
+    const snapshot = buildPetSnapshot({
+      progress: derivePetProgress(state.nodes),
+      nodes: state.nodes,
+      edges: state.edges,
+      pokes: state.pokes,
+      notifications: state.notifications,
+      currentUser: state.currentUser,
+    });
+    desktopBridge.updatePetProgress(snapshot.progress);
+    desktopBridge.sendPetSnapshot(snapshot);
+  }, [state.nodes, state.edges, state.pokes, state.notifications, state.currentUser]);
 
   if (loading || failed) {
     return (

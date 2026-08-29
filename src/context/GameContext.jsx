@@ -13,7 +13,7 @@ const initialState = {
   edges: [],
   pokes: [],
   notifications: [],
-  currentUser: '灏忛檲',
+  currentUser: '小陈',
   teamId: 'team-demo',
   integrity: 100,
   escapeProgress: 0,
