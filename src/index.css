@@ -69,18 +69,6 @@ a:focus-visible {
   overflow: hidden;
 }
 
-.network-page::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(rgb(92 120 160 / 5%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(92 120 160 / 5%) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: radial-gradient(circle at 50% 45%, black, transparent 80%);
-}
-
 .network-topbar {
   position: relative;
   z-index: 3;
