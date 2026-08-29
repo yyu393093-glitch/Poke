@@ -71,7 +71,7 @@ export default function PetWindow() {
   return (
     <main className={`pet-shell ${expanded ? 'pet-shell-expanded' : ''} pet-popup-${popupSide} ${dragActive ? 'pet-drag-active' : ''} ${dropState !== 'idle' ? `pet-drop-${dropState}` : ''}`} onMouseEnter={enter} onMouseLeave={leave} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragActive(false); }} onDrop={handleDrop} onContextMenu={(event) => { event.preventDefault(); desktopBridge.petOpenMenu(); }}>
       <button type="button" className={`pet-core ${paused ? 'pet-paused' : ''} phase-${progress.phase}`} aria-label="打开协作网络" onClick={openMain}>
-        <span className="capybara-mascot" aria-hidden="true"><img key={mascotAsset} src={mascotAsset} alt="" /></span>
+        <span className={`capybara-mascot mascot-${dropState === 'consumed' ? 'success' : dropState === 'eating' ? 'eating' : dragActive ? 'shake' : 'idle'}`} aria-hidden="true"><img key={mascotAsset} src={mascotAsset} alt="" /></span>
         {!expanded && <span className="pet-status" aria-label={meta.label}>{dropState === 'idle' ? meta.icon : '↓'}</span>}
       </button>
       {dropState !== 'idle' ? (

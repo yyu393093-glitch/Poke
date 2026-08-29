@@ -101,7 +101,12 @@ html.pet-window-host, html.pet-window-host body, html.pet-window-host #root { wi
 html.pet-window-host .pet-core { width: 96px; height: 96px; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; }
 html.pet-window-host .pet-core:focus-visible { outline: 2px solid rgb(250 204 21 / 80%); outline-offset: 2px; }
 html.pet-window-host .pet-core .capybara-mascot, html.pet-window-host .pet-core .capybara-mascot img { width: 96px; height: 96px; }
-html.pet-window-host .pet-core .pet-status { top: 0; right: 0; }
+html.pet-window-host .pet-core .pet-status { display: none; }
 html.pet-window-host .pet-shell-expanded { width: 360px; height: 150px; }
 html.pet-window-host .pet-shell-expanded .pet-card, html.pet-window-host .pet-shell-expanded .pet-drop-card { z-index: 1; }
 html.pet-window-host .pet-shell-expanded .pet-core { z-index: 3; }
+html.pet-window-host .capybara-mascot { overflow: hidden; }
+html.pet-window-host .capybara-mascot img { max-width: none; object-fit: contain; transform-origin: center; }
+html.pet-window-host .mascot-idle img { width: 152px !important; height: 152px !important; transform: translate(-28px, -31px); }
+html.pet-window-host .mascot-shake img { width: 104px !important; height: 104px !important; transform: translate(-4px, -4px); }
+html.pet-window-host .mascot-eating img, html.pet-window-host .mascot-success img { width: 112px !important; height: 112px !important; transform: translate(-8px, -8px); }
