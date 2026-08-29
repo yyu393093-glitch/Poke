@@ -18,4 +18,7 @@ export const desktopBridge = {
   sendChat: (payload) => desktop?.sendChat?.(payload) ?? Promise.resolve(null),
   onPokeReceived: (listener) => desktop?.onPokeReceived?.(listener) ?? noopUnsubscribe,
   onSessionUpdated: (listener) => desktop?.onSessionUpdated?.(listener) ?? noopUnsubscribe,
+  sendPetSnapshot: (snapshot) => desktop?.sendPetSnapshot?.(snapshot) ?? Promise.resolve(null),
+  petSetMode: (mode) => desktop?.petSetMode?.(mode) ?? Promise.resolve(null),
+  onPetSnapshot: (listener) => desktop?.onPetSnapshot?.(listener) ?? noopUnsubscribe,
 };

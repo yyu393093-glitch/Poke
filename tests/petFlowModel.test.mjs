@@ -65,3 +65,12 @@ test('边缘翻转：靠近右下边缘时向左侧/上方展开', () => {
   assert.deepEqual(computePetFlip({ anchorX: 700, anchorY: 700, contentWidth: 380, contentHeight: 500, availWidth: 1000, availHeight: 1000 }), { flipX: true, flipY: true });
   assert.deepEqual(computePetFlip({ anchorX: 10, anchorY: 10, contentWidth: 380, contentHeight: 500, availWidth: 1000, availHeight: 1000 }), { flipX: false, flipY: false });
 });
+
+const contracts = await import('../electron/ipc/contracts.cjs');
+test('宠物快照与模式 payload 被白名单校验', () => {
+  assert.deepEqual(contracts.validatePetSnapshot({ progress: {}, nodes: [], edges: [], pokes: [], notifications: [], currentUser: '小陈' }), { progress: {}, nodes: [], edges: [], pokes: [], notifications: [], currentUser: '小陈' });
+  assert.throws(() => contracts.validatePetSnapshot({ progress: {}, nodes: [] }), /Unknown|Invalid/);
+  assert.throws(() => contracts.validatePetSnapshot({ progress: {}, nodes: {}, edges: [], pokes: [], notifications: [], currentUser: '' }), /array/);
+  assert.deepEqual(contracts.validatePetMode({ mode: 'panel', flipX: true, flipY: false }), { mode: 'panel', flipX: true, flipY: false });
+  assert.throws(() => contracts.validatePetMode({ mode: 'bogus' }), /mode/);
+});
