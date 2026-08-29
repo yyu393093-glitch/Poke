@@ -1,0 +1,29 @@
+schema: spec-driven
+
+context: |
+  Language: zh
+  All artifacts must be written in zh.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+rules:
+  proposal:
+    - 在 Impact 中标明 Delivery Tier（T0-T3）与 A/B/C 文件所有权。
+    - 明确客户端、网页 Demo 与生产能力的边界。
+  specs:
+    - 每项安全或隐私要求至少包含一个可验证 Scenario。
+    - Production 失败不得用 Demo 成功结果兜底。
+  design:
+    - 明确 Renderer、preload、Electron main 与 Node Service 的进程边界。
+    - 记录被拒绝的备选方案及原因。
+  tasks:
+    - 所有功能和缺陷修复必须先有失败测试，再实现，再执行回归验证。
+    - 每个任务必须包含具体测试命令或可观察验收结果。
+
+operations:
+  apply:
+    guidance:
+      - 只实施当前 active change 的 tasks.md 范围。
+      - 未验证完成前不得勾选任务或声称交付完成。
+  archive:
+    guidance:
+      - 仅在严格校验、自动测试和目标平台 Smoke 均通过后归档。
