@@ -1,8 +1,22 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import cors from 'cors';
 import express from 'express';
+import multer from 'multer';
+import {
+  initStore,
+  addDocument,
+  getDocumentById,
+  addParse,
+  getParses,
+  getParseById,
+  setOrgChart,
+  UPLOADS_DIR,
+} from './store.js';
+import { hasApiKey, parseDocument, parseOrgChart } from './parseClient.js';
+import { enrichAssignments } from './assignmentEngine.js';
 
 const PORT = 3001;
 const app = express();
@@ -14,6 +28,20 @@ const mockData = JSON.parse(
 );
 
 const { tasks, edges, coordinates } = mockData;
+
+// 确保数据目录与上传目录存在，并初始化 JSON 存储
+initStore();
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_request, _file, callback) => callback(null, UPLOADS_DIR),
+    filename: (_request, file, callback) => {
+      const ext = path.extname(file.originalname ?? '').toLowerCase();
+      callback(null, `${randomUUID()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 app.use(cors());
 app.use(express.json());
@@ -114,6 +142,179 @@ app.post('/api/clock/off', async (_request, response) => {
 app.get('/api/metrics', async (_request, response) => {
   await delay();
   response.json({ doneToday: 3, alignedPeople: 5, blocked: 0 });
+});
+
+// ============================================================
+// 文档解析板块（新增 6 个接口，不叠加人为 200–500ms 延迟）
+// ============================================================
+
+// 上传/粘贴文档 → 存本地 JSON → 调 DeepSeek 解析 → 写 parses 落盘
+async function runParse(body) {
+  if (!hasApiKey()) {
+    return { error: '未配置模型' };
+  }
+
+  const { documentId, text } = body ?? {};
+  let content;
+  if (typeof text === 'string' && text.trim()) {
+    content = text;
+  } else if (documentId) {
+    const doc = getDocumentById(documentId);
+    if (!doc) {
+      return { error: '文档不存在' };
+    }
+    content = doc.content;
+  } else {
+    return { error: '缺少 text 或 documentId' };
+  }
+
+  try {
+    const result = await parseDocument(content);
+    result.recommendedAssignments = enrichAssignments(result);
+    addParse({
+      id: randomUUID(),
+      document_id: documentId ?? '',
+      result_json: JSON.stringify(result),
+      status: 'success',
+      error: '',
+      created_at: new Date().toISOString(),
+    });
+    return { result };
+  } catch (error) {
+    addParse({
+      id: randomUUID(),
+      document_id: documentId ?? '',
+      result_json: '',
+      status: 'failed',
+      error: error?.message ?? String(error),
+      created_at: new Date().toISOString(),
+    });
+    return { error: '解析失败' };
+  }
+}
+
+// 上传文件（multipart/form-data，字段名 file）
+app.post('/api/doc/upload', upload.single('file'), (request, response) => {
+  const file = request.file;
+  if (!file) {
+    response.json({ error: '未收到文件' });
+    return;
+  }
+
+  const ext = path.extname(file.originalname ?? '').toLowerCase();
+  if (!['.txt', '.md', '.json'].includes(ext)) {
+    try {
+      unlinkSync(file.path);
+    } catch {
+      // 忽略清理失败
+    }
+    response.json({ error: '暂不支持的格式' });
+    return;
+  }
+
+  let content;
+  try {
+    content = readFileSync(file.path, 'utf8');
+  } catch {
+    response.json({ error: '读取文件失败' });
+    return;
+  }
+
+  const id = randomUUID();
+  addDocument({
+    id,
+    filename: file.originalname,
+    source_type: 'upload',
+    content,
+    created_at: new Date().toISOString(),
+  });
+  response.json({
+    documentId: id,
+    filename: file.originalname,
+    contentLength: content.length,
+  });
+});
+
+// 解析文档（收 documentId 或 text）
+app.post('/api/doc/parse', async (request, response) => {
+  const outcome = await runParse(request.body ?? {});
+  if (outcome.error) {
+    response.json({ error: outcome.error });
+    return;
+  }
+  response.json(outcome.result);
+});
+
+// 历史解析记录列表
+app.get('/api/doc/list', (_request, response) => {
+  const documents = getParses().map((parse) => {
+    const item = {
+      id: parse.id,
+      document_id: parse.document_id,
+      status: parse.status,
+      error: parse.error,
+      created_at: parse.created_at,
+    };
+    if (parse.status === 'success' && parse.result_json) {
+      try {
+        const result = JSON.parse(parse.result_json);
+        item.source = result.source ?? '';
+        item.summary = result.summary ?? '';
+      } catch {
+        // 忽略损坏的记录，仅返回元信息
+      }
+    }
+    return item;
+  });
+  response.json({ documents });
+});
+
+// 单条解析结果
+app.get('/api/doc/:id', (request, response) => {
+  const parse = getParseById(request.params.id);
+  if (!parse) {
+    response.json({ error: '记录不存在' });
+    return;
+  }
+  if (parse.status !== 'success') {
+    response.json({ error: parse.error || '解析失败' });
+    return;
+  }
+  try {
+    response.json(JSON.parse(parse.result_json));
+  } catch {
+    response.json({ error: '解析结果损坏' });
+  }
+});
+
+// 组织架构导入
+app.post('/api/org/import', async (request, response) => {
+  if (!hasApiKey()) {
+    response.json({ error: '未配置模型' });
+    return;
+  }
+  const { text } = request.body ?? {};
+  if (typeof text !== 'string' || !text.trim()) {
+    response.json({ error: '缺少 text' });
+    return;
+  }
+  try {
+    const { orgChart } = await parseOrgChart(text);
+    setOrgChart(orgChart);
+    response.json({ orgChart });
+  } catch {
+    response.json({ error: '解析失败' });
+  }
+});
+
+// 推荐分工（复用 runParse，只返回 recommendedAssignments）
+app.post('/api/assignment/recommend', async (request, response) => {
+  const outcome = await runParse(request.body ?? {});
+  if (outcome.error) {
+    response.json({ error: outcome.error });
+    return;
+  }
+  response.json({ assignments: outcome.result.recommendedAssignments ?? [] });
 });
 
 app.listen(PORT, () => {

@@ -2,3 +2,10 @@ node_modules/
 dist/
 .DS_Store
 *.local
+
+# 本地环境变量（含 DEEPSEEK_API_KEY，不进 git）
+.env
+server/.env
+
+# 文档解析板块本地存储（JSON 文件 + 上传文件）
+server/data/
